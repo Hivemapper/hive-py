@@ -30,7 +30,7 @@ options:
 ### Python API
 **Query and download**
 ```
-from imagery import query_frames
+from imagery import download_files, query_frames
 
 # make the API call to query available data
 frames = query_frames(geojson_file, start_day, end_day, output_dir, authorization)
