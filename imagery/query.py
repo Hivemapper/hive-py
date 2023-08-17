@@ -47,7 +47,6 @@ def download_files(frames, local_dir, num_threads=DEFAULT_THREADS, verbose=False
       json.dump(meta, f, indent=4)
 
   with concurrent.futures.ThreadPoolExecutor(max_workers=num_threads) as executor:
-    print(f'Downloading with {num_threads} threads...')
     executor.map(download_file, urls, local_img_paths, repeat(verbose))
 
 def query_imagery(features, weeks, authorization, local_dir, verbose=False):
@@ -73,7 +72,7 @@ def query_imagery(features, weeks, authorization, local_dir, verbose=False):
 
   return frames
 
-def query(geojson_file, start_day, end_day, output_dir, authorization, num_threads=DEFAULT_THREADS, verbose=False):
+def query_frames(geojson_file, start_day, end_day, output_dir, authorization, verbose = False):
   assert(start_day <= end_day)
 
   features = []
@@ -95,12 +94,25 @@ def query(geojson_file, start_day, end_day, output_dir, authorization, num_threa
   print(f'Querying {len(features)} features for imagery across {len(weeks)} weeks...')
 
   frames = query_imagery(features, weeks, authorization, output_dir, verbose)
-  print(f'Found {len(frames)} images!')
+  return frames
 
-  if frames:
-    download_files(frames, output_dir, num_threads, verbose)
+def frame_within_day_bounds(frame, start_day, end_day):
+  d = datetime.fromisoformat(frame.get('timestamp').split('.')[0])
+  return d >= start_day and d <= end_day + timedelta(days=1)
 
-  print(f'{len(frames)} frames saved to {output_dir}!')
+def query(geojson_file, start_day, end_day, output_dir, authorization, num_threads=DEFAULT_THREADS, verbose=False):
+  frames = query_frames(geojson_file, start_day, end_day, output_dir, authorization, verbose)
+  print(f'Found {len(frames)} images at week level')
+
+  filtered_frames = [frame for frame in frames if frame_within_day_bounds(frame, start_day, end_day)]
+  print(f'Found {len(filtered_frames)} images between {start_day.strftime("%Y-%m-%d")} and {end_day.strftime("%Y-%m-%d")}')
+
+  if filtered_frames:
+    print(f'Downloading with {num_threads} threads...')
+
+    download_files(filtered_frames, output_dir, num_threads, verbose)
+    
+    print(f'{len(filtered_frames)} frames saved to {output_dir}!')
 
 if __name__ == '__main__':
   parser = argparse.ArgumentParser()
