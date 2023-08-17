@@ -94,7 +94,9 @@ def query_frames(geojson_file, start_day, end_day, output_dir, authorization, ve
   print(f'Querying {len(features)} features for imagery across {len(weeks)} weeks...')
 
   frames = query_imagery(features, weeks, authorization, output_dir, verbose)
-  return frames
+  filtered_frames = [frame for frame in frames if frame_within_day_bounds(frame, start_day, end_day)]
+
+  return filtered_frames
 
 def frame_within_day_bounds(frame, start_day, end_day):
   d = datetime.fromisoformat(frame.get('timestamp').split('.')[0])
@@ -102,17 +104,14 @@ def frame_within_day_bounds(frame, start_day, end_day):
 
 def query(geojson_file, start_day, end_day, output_dir, authorization, num_threads=DEFAULT_THREADS, verbose=False):
   frames = query_frames(geojson_file, start_day, end_day, output_dir, authorization, verbose)
-  print(f'Found {len(frames)} images at week level')
+  print(f'Found {len(frames)} images!')
 
-  filtered_frames = [frame for frame in frames if frame_within_day_bounds(frame, start_day, end_day)]
-  print(f'Found {len(filtered_frames)} images between {start_day.strftime("%Y-%m-%d")} and {end_day.strftime("%Y-%m-%d")}')
-
-  if filtered_frames:
+  if frames:
     print(f'Downloading with {num_threads} threads...')
 
-    download_files(filtered_frames, output_dir, num_threads, verbose)
+    download_files(frames, output_dir, num_threads, verbose)
     
-    print(f'{len(filtered_frames)} frames saved to {output_dir}!')
+    print(f'{len(frames)} frames saved to {output_dir}!')
 
 if __name__ == '__main__':
   parser = argparse.ArgumentParser()
