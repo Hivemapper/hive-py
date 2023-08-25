@@ -41,7 +41,7 @@ from imagery import download_files, query_frames
 frames = query_frames(geojson_file, start_day, end_day, output_dir, authorization)
 
 # download the content into folders grouped by its session id
-download_files(frames, output_dir, num_threads)
+download_files(frames, output_dir)
 ```
 
 ## Example
