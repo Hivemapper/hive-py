@@ -14,14 +14,19 @@ pip install -r requirements.txt
 # Usage
 ### CLI
 ```
-usage: query.py [-h] -i GEOJSON -s START_DAY -e END_DAY -o OUTPUT_DIR -a AUTHORIZATION [-c NUM_THREADS] [-v]
+usage: query.py [-h] -i GEOJSON -s START_DAY -e END_DAY [-x] [-d MAX_DIST] [-l MAX_LAG] [-z MAX_ANGLE] -o OUTPUT_DIR [-g] -a AUTHORIZATION [-c NUM_THREADS] [-v]
 
 options:
   -h, --help            show this help message and exit
   -i GEOJSON, --geojson GEOJSON
   -s START_DAY, --start_day START_DAY
   -e END_DAY, --end_day END_DAY
+  -x, --stitch
+  -d MAX_DIST, --max_dist MAX_DIST
+  -l MAX_LAG, --max_lag MAX_LAG
+  -z MAX_ANGLE, --max_angle MAX_ANGLE
   -o OUTPUT_DIR, --output_dir OUTPUT_DIR
+  -g, --export_geojson
   -a AUTHORIZATION, --authorization AUTHORIZATION
   -c NUM_THREADS, --num_threads NUM_THREADS
   -v, --verbose
@@ -42,10 +47,15 @@ download_files(frames, output_dir, num_threads)
 ## Example
 ### Query imagery for a GeoJSON Polygon Feature
 ```
-python -m imagery.query --geojson "test_feature.json" --start_day "2023-07-31" --end_day "2023-07-31" --output_dir "temp" --authorization <your encoded key string>
+python -m imagery.query -v --geojson "test_feature.json" --start_day "2023-07-28" --end_day "2023-07-28" --output_dir "temp" --authorization <your encoded key string>
 ```
 
-### Query imagery for a GeoJSON Polygon FeatureCollection
+### Query imagery for a GeoJSON Polygon FeatureCollection; stitch together; save a GeoJSON of LineStrings
 ```
-python -m imagery.query --geojson "test_feature_col.json" --start_day "2023-07-31" --end_day "2023-07-31" --output_dir "temp" --authorization <your encoded key string>
+python -m imagery.query -v -x -g --geojson "test_feature_col.json" --start_day "2023-07-28" --end_day "2023-07-28" --output_dir "temp" --authorization <your encoded key string>
+```
+
+### Query imagery for a GeoJSON Polygon FeatureCollection; save a GeoJSON of points
+```
+python -m imagery.query -v -g --geojson "test_feature_col.json" --start_day "2023-07-28" --end_day "2023-07-28" --output_dir "temp" --authorization <your encoded key string>
 ```
