@@ -10,6 +10,7 @@ import json
 import os
 import requests
 import shutil
+import uuid
 
 from area import area
 from datetime import datetime, timedelta
@@ -312,7 +313,8 @@ def query(
     if should_stitch:
       stitched = stitch(frames, max_dist, max_lag, max_angle, verbose)
       for i, frame_set in enumerate(stitched):
-        local_dir = os.path.join(output_dir, str(i))
+        folder = f'{str(uuid.uuid4())}-{str(i)}'
+        local_dir = os.path.join(output_dir, folder)
         download_files(frame_set, local_dir, False, num_threads, verbose)
       if export_geojson:
         write_geojson(stitched, output_dir, False, verbose)
