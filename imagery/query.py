@@ -16,6 +16,7 @@ from area import area
 from datetime import datetime, timedelta
 from itertools import repeat
 from geographiclib.geodesic import Geodesic
+from util import geo
 
 DEFAULT_STITCH_MAX_DISTANCE = 20
 DEFAULT_STITCH_MAX_LAG = 300
@@ -128,10 +129,6 @@ def boundaries_intersect(a, b):
   earliest_end = min(a1, b1)
   return latest_start < earliest_end  
 
-def abs_angular_delta(a, b):
-  delta = abs(a - b)
-  return delta if delta <= 180 else 360 - delta
-
 def stitch(
   frames,
   max_dist = DEFAULT_STITCH_MAX_DISTANCE,
@@ -213,7 +210,7 @@ def stitch(
 
     azi_a = Geodesic.WGS84.Inverse(lat_a0, lon_a0, lat_a1, lon_a1).get('azi2')
     azi_b = Geodesic.WGS84.Inverse(lat_b0, lon_b0, lat_b1, lon_b1).get('azi2')
-    delta_azi = abs_angular_delta(azi_a, azi_b)
+    delta_azi = geo.abs_angular_delta(azi_a, azi_b)
 
     if delta_azi > max_azimuth_delta:
       remaining.append(seq)
