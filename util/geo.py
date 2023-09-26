@@ -36,9 +36,10 @@ def filter_small_segments(linestring, min_length):
 
   for i in range(1, len(coords)):
     cur = coords[i]
-    a = reversed(prev)
-    b = reversed(cur)
-    d = geopy.distance.distance(a, b).meters
+    d = geopy.distance.distance(
+      reversed(a),
+      reversed(b),
+    ).meters
 
     if d < min_length:
       continue
@@ -82,6 +83,8 @@ def explode_sharp_angles(coords, threshold = 45):
       cur_line.append(coords[i])
     else:
       lines.append(cur_line)
+      # also add the one-point segment because we don't
+      # support a miter/join solution for continuous solution
       lines.append([coords[i - 1]])
       cur_line = [coords[i - 1], coords[i]]
 
