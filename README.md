@@ -29,6 +29,7 @@ options:
   -o OUTPUT_DIR, --output_dir OUTPUT_DIR
   -g, --export_geojson
   -a AUTHORIZATION, --authorization AUTHORIZATION
+  -w WIDTH, --width WIDTH
   -c NUM_THREADS, --num_threads NUM_THREADS
   -v, --verbose
 ```
