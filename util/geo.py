@@ -1,9 +1,14 @@
+import argparse
 import geopy.distance
+import json
 import math
+import shapefile
 
 from geographiclib.geodesic import Geodesic
+from tqdm import tqdm
 from pyproj import Transformer
 
+DEFAULT_WIDTH = 25
 MERCATOR_TO_WGS = Transformer.from_crs("EPSG:3857", "EPSG:4326", always_xy=True)
 WGS_TO_MERCATOR = Transformer.from_crs("EPSG:4326", "EPSG:3857", always_xy=True)
 
@@ -37,8 +42,8 @@ def filter_small_segments(linestring, min_length):
   for i in range(1, len(coords)):
     cur = coords[i]
     d = geopy.distance.distance(
-      reversed(a),
-      reversed(b),
+      reversed(cur),
+      reversed(prev),
     ).meters
 
     if d < min_length:
@@ -94,14 +99,14 @@ def explode_sharp_angles(coords, threshold = 45):
 
 def geojson_point_to_poly(
   point,
-  width = 25,
+  width = DEFAULT_WIDTH,
 ):
   coord = get_coords(point)
   return point_to_square(coord, width)
 
 def geojson_linestring_to_poly(
   linestring,
-  width = 25,
+  width = DEFAULT_WIDTH,
 ):
   filtered_coords = filter_small_segments(linestring, width)
   half_width = float(width) / 2.0
@@ -168,3 +173,57 @@ def geojson_linestring_to_poly(
         "coordinates": [new_coords],
       },
     }
+
+def convert_to_geojson_poly(feature, width = DEFAULT_WIDTH):
+  geom = feature['geometry']
+  t = geom['type']
+
+  if t == 'LineString':
+    return geojson_linestring_to_poly(geom, width)
+  elif t == 'Point':
+    return geojson_point_to_poly(geom, width)
+  elif t == 'Polygon' or t == 'MultiPolygon':
+    return geom
+  else:
+    raise Exception(f'Unsupported type: {t}')
+
+def transform_shapefile_to_geojson_polygons(file_path, width = DEFAULT_WIDTH, verbose = False):
+  geojson = {}
+
+  if verbose:
+    print(f'reading {file_path} as geojson...')
+  with shapefile.Reader(file_path) as shp:
+    geojson = shp.__geo_interface__
+
+  features = geojson.get('features')
+  if verbose:
+    print(f'converting {len(features)} features to polygons...')
+
+  if verbose:
+    polygons = []
+    for f in tqdm(features):
+      polygons.append(convert_to_geojson_poly(f, width))
+  else:
+    polygons = [convert_to_geojson_poly(f, width) for f in features]
+
+  return polygons
+
+if __name__ == '__main__':
+  parser = argparse.ArgumentParser()
+  parser.add_argument('-s', '--shapefile', type=str, required=True)
+  parser.add_argument('-o', '--output_json', type=str, required=True)
+  parser.add_argument('-w', '--width', type=int, default=DEFAULT_WIDTH)
+  parser.add_argument('-q', '--quiet', action='store_true')
+  args = parser.parse_args()
+
+  features = transform_shapefile_to_geojson_polygons(
+    args.shapefile,
+    args.width,
+    not args.quiet,
+  )
+
+  with open(args.output_json, 'w') as f:
+    json.dump({
+      'type': 'FeatureCollection',
+      'features': features,
+      }, f)

@@ -14,6 +14,7 @@ pip install -r requirements.txt
 # Usage
 ### CLI
 ```
+> python -m imagery.query
 usage: query.py [-h] -i GEOJSON -s START_DAY -e END_DAY [-x] [-d MAX_DIST] [-l MAX_LAG] [-z MAX_ANGLE] -o OUTPUT_DIR [-g] -a AUTHORIZATION [-c NUM_THREADS] [-v]
 
 options:
@@ -58,4 +59,18 @@ python -m imagery.query -v -x -g --geojson "test_feature_col.json" --start_day "
 ### Query imagery for a GeoJSON Polygon FeatureCollection; save a GeoJSON of points
 ```
 python -m imagery.query -v -g --geojson "test_feature_col.json" --start_day "2023-07-28" --end_day "2023-07-28" --output_dir "temp" --authorization <your encoded key string>
+```
+
+### Converting .shp to Hivemapper-optimized GeoJSON
+```
+> python -m util.geo -h
+usage: geo.py [-h] -s SHAPEFILE -o OUTPUT_JSON [-w WIDTH] [-q]
+
+options:
+  -h, --help            show this help message and exit
+  -s SHAPEFILE, --shapefile SHAPEFILE
+  -o OUTPUT_JSON, --output_json OUTPUT_JSON
+  -w WIDTH, --width WIDTH
+  -q, --quiet
+
 ```
