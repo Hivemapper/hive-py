@@ -16,11 +16,13 @@ from area import area
 from datetime import datetime, timedelta
 from itertools import repeat
 from geographiclib.geodesic import Geodesic
+from util import geo
 
 DEFAULT_STITCH_MAX_DISTANCE = 20
 DEFAULT_STITCH_MAX_LAG = 300
 DEFAULT_STITCH_MAX_ANGLE = 30
 DEFAULT_THREADS = 20
+DEFAULT_WIDTH = 25
 IMAGERY_API_URL = 'https://hivemapper.com/api/developer/imagery/poly'
 MAX_AREA = 1000 * 1000 # 1km^2
 
@@ -128,10 +130,6 @@ def boundaries_intersect(a, b):
   earliest_end = min(a1, b1)
   return latest_start < earliest_end  
 
-def abs_angular_delta(a, b):
-  delta = abs(a - b)
-  return delta if delta <= 180 else 360 - delta
-
 def stitch(
   frames,
   max_dist = DEFAULT_STITCH_MAX_DISTANCE,
@@ -213,7 +211,7 @@ def stitch(
 
     azi_a = Geodesic.WGS84.Inverse(lat_a0, lon_a0, lat_a1, lon_a1).get('azi2')
     azi_b = Geodesic.WGS84.Inverse(lat_b0, lon_b0, lat_b1, lon_b1).get('azi2')
-    delta_azi = abs_angular_delta(azi_a, azi_b)
+    delta_azi = geo.abs_angular_delta(azi_a, azi_b)
 
     if delta_azi > max_azimuth_delta:
       remaining.append(seq)
@@ -290,7 +288,7 @@ def write_geojson(frame_lists, output_dir, points = False, verbose = False):
     print(f'Wrote geojson to {geojson_path}')
 
 def query(
-  geojson_file,
+  file_path,
   start_day,
   end_day,
   output_dir,
@@ -300,9 +298,15 @@ def query(
   max_dist=DEFAULT_STITCH_MAX_DISTANCE,
   max_lag=DEFAULT_STITCH_MAX_LAG,
   max_angle=DEFAULT_STITCH_MAX_ANGLE,
+  width=DEFAULT_WIDTH,
   num_threads=DEFAULT_THREADS,
   verbose=False,
 ):
+  if file_path.endswith('.shp'):
+    geojson_file = f'{file_path[0 : len(file_path) - 4]}.geojson_{str(uuid.uuid4())}'
+    geo.transform_shapefile_to_geojson_polygons(file_path, geojson_file, width, verbose)
+  else:
+    geojson_file = file_path
   frames = query_frames(geojson_file, start_day, end_day, output_dir, authorization, verbose)
   print(f'Found {len(frames)} images!')
 
@@ -336,6 +340,7 @@ if __name__ == '__main__':
   parser.add_argument('-z', '--max_angle', type=float, default=DEFAULT_STITCH_MAX_LAG)
   parser.add_argument('-o', '--output_dir', type=str, required=True)
   parser.add_argument('-g', '--export_geojson', action='store_true')
+  parser.add_argument('-w', '--width', type=int)
   parser.add_argument('-a', '--authorization', type=str, required=True)
   parser.add_argument('-c', '--num_threads', type=int, default=DEFAULT_THREADS)
   parser.add_argument('-v', '--verbose', action='store_true')
@@ -352,6 +357,7 @@ if __name__ == '__main__':
     args.max_dist,
     args.max_lag,
     args.max_angle,
+    args.width,
     args.num_threads,
     args.verbose,
   )
