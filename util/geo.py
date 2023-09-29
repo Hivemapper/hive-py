@@ -92,7 +92,14 @@ def explode_sharp_angles(coords, threshold = 45):
 
   return lines
 
-def linestring_to_poly(
+def geojson_point_to_poly(
+  point,
+  width = 25,
+):
+  coord = get_coords(point)
+  return point_to_square(coord, width)
+
+def geojson_linestring_to_poly(
   linestring,
   width = 25,
 ):
@@ -115,7 +122,7 @@ def linestring_to_poly(
       "coordinates": line,
     } for line in lines]
 
-    polys = [linestring_to_poly(line) for line in linestrings]
+    polys = [geojson_linestring_to_poly(line) for line in linestrings]
     return {
       "type": "Feature",
       "properties": {},
