@@ -305,6 +305,8 @@ def query(
   if file_path.endswith('.shp'):
     geojson_file = f'{file_path[0 : len(file_path) - 4]}.geojson_{str(uuid.uuid4())}'
     geo.transform_shapefile_to_geojson_polygons(file_path, geojson_file, width, verbose)
+  else:
+    geojson_file = file_path
   frames = query_frames(geojson_file, start_day, end_day, output_dir, authorization, verbose)
   print(f'Found {len(frames)} images!')
 
