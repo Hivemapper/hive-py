@@ -22,6 +22,7 @@ DEFAULT_STITCH_MAX_DISTANCE = 20
 DEFAULT_STITCH_MAX_LAG = 300
 DEFAULT_STITCH_MAX_ANGLE = 30
 DEFAULT_THREADS = 20
+DEFAULT_WIDTH = 25
 IMAGERY_API_URL = 'https://hivemapper.com/api/developer/imagery/poly'
 MAX_AREA = 1000 * 1000 # 1km^2
 
@@ -287,7 +288,7 @@ def write_geojson(frame_lists, output_dir, points = False, verbose = False):
     print(f'Wrote geojson to {geojson_path}')
 
 def query(
-  geojson_file,
+  file_path,
   start_day,
   end_day,
   output_dir,
@@ -297,9 +298,13 @@ def query(
   max_dist=DEFAULT_STITCH_MAX_DISTANCE,
   max_lag=DEFAULT_STITCH_MAX_LAG,
   max_angle=DEFAULT_STITCH_MAX_ANGLE,
+  width=DEFAULT_WIDTH,
   num_threads=DEFAULT_THREADS,
   verbose=False,
 ):
+  if file_path.endswith('.shp'):
+    geojson_file = f'{file_path[0 : len(file_path) - 4]}.geojson_{str(uuid.uuid4())}'
+    geo.transform_shapefile_to_geojson_polygons(file_path, geojson_file, width, verbose)
   frames = query_frames(geojson_file, start_day, end_day, output_dir, authorization, verbose)
   print(f'Found {len(frames)} images!')
 
@@ -333,6 +338,7 @@ if __name__ == '__main__':
   parser.add_argument('-z', '--max_angle', type=float, default=DEFAULT_STITCH_MAX_LAG)
   parser.add_argument('-o', '--output_dir', type=str, required=True)
   parser.add_argument('-g', '--export_geojson', action='store_true')
+  parser.add_argument('-w', '--width', type=int)
   parser.add_argument('-a', '--authorization', type=str, required=True)
   parser.add_argument('-c', '--num_threads', type=int, default=DEFAULT_THREADS)
   parser.add_argument('-v', '--verbose', action='store_true')
@@ -349,6 +355,7 @@ if __name__ == '__main__':
     args.max_dist,
     args.max_lag,
     args.max_angle,
+    args.width,
     args.num_threads,
     args.verbose,
   )

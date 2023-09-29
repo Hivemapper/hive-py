@@ -187,7 +187,7 @@ def convert_to_geojson_poly(feature, width = DEFAULT_WIDTH):
   else:
     raise Exception(f'Unsupported type: {t}')
 
-def transform_shapefile_to_geojson_polygons(file_path, width = DEFAULT_WIDTH, verbose = False):
+def transform_shapefile_to_geojson_polygons(file_path, out_path = None, width = DEFAULT_WIDTH, verbose = False):
   geojson = {}
 
   if verbose:
@@ -206,6 +206,16 @@ def transform_shapefile_to_geojson_polygons(file_path, width = DEFAULT_WIDTH, ve
   else:
     polygons = [convert_to_geojson_poly(f, width) for f in features]
 
+  if out_path:
+    if verbose:
+      print(f'writing to {out_path}...')
+
+    with open(out_path, 'w') as f:
+      json.dump({
+        'type': 'FeatureCollection',
+        'features': polygons,
+        }, f)
+
   return polygons
 
 if __name__ == '__main__':
@@ -216,14 +226,9 @@ if __name__ == '__main__':
   parser.add_argument('-q', '--quiet', action='store_true')
   args = parser.parse_args()
 
-  features = transform_shapefile_to_geojson_polygons(
+  transform_shapefile_to_geojson_polygons(
     args.shapefile,
+    args.output_json,
     args.width,
     not args.quiet,
   )
-
-  with open(args.output_json, 'w') as f:
-    json.dump({
-      'type': 'FeatureCollection',
-      'features': features,
-      }, f)
