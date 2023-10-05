@@ -72,7 +72,7 @@ def query_imagery(features, weeks, authorization, local_dir, verbose=False):
   frames = []
 
   itr = features if not verbose else tqdm(features)
-  for feature in features:
+  for feature in itr:
     data = feature.get('geometry', feature)
     assert(area(data) <= MAX_AREA)
 
