@@ -4,16 +4,56 @@ import geopy.distance
 import json
 import math
 import shapefile
+import shapely
 
+from area import area
 from geographiclib.geodesic import Geodesic
-from tqdm import tqdm
 from pyproj import Transformer
+from shapely.geometry import box, Polygon, MultiPolygon, GeometryCollection
+from tqdm import tqdm
 
 AREA_LIMIT = 1000000
 MAX_MULTIPOLYGON_CARDINALITY = 8
 DEFAULT_WIDTH = 25
 MERCATOR_TO_WGS = Transformer.from_crs("EPSG:3857", "EPSG:4326", always_xy=True)
 WGS_TO_MERCATOR = Transformer.from_crs("EPSG:4326", "EPSG:3857", always_xy=True)
+
+# https://snorfalorpagus.net/blog/2016/03/13/splitting-large-polygons-for-faster-intersections/
+def katana(geometry, threshold, count=0):
+    """Split a Polygon into two parts across it's shortest dimension"""
+    bounds = geometry.bounds
+    width = bounds[2] - bounds[0]
+    height = bounds[3] - bounds[1]
+    if max(width, height) <= threshold or count == 250:
+        # either the polygon is smaller than the threshold, or the maximum
+        # number of recursions has been reached
+        return [geometry]
+    if height >= width:
+        # split left to right
+        a = box(bounds[0], bounds[1], bounds[2], bounds[1]+height/2)
+        b = box(bounds[0], bounds[1]+height/2, bounds[2], bounds[3])
+    else:
+        # split top to bottom
+        a = box(bounds[0], bounds[1], bounds[0]+width/2, bounds[3])
+        b = box(bounds[0]+width/2, bounds[1], bounds[2], bounds[3])
+    result = []
+    for d in (a, b,):
+        c = geometry.intersection(d)
+        if not isinstance(c, GeometryCollection):
+            c = [c]
+        for e in c:
+            if isinstance(e, (Polygon, MultiPolygon)):
+                result.extend(katana(e, threshold, count+1))
+    if count > 0:
+        return result
+    # convert multipart into singlepart
+    final_result = []
+    for g in result:
+        if isinstance(g, MultiPolygon):
+            final_result.extend(g)
+        else:
+            final_result.append(g)
+    return final_result
 
 def abs_angular_delta(a, b):
   delta = abs(a - b)
@@ -180,8 +220,26 @@ def geojson_linestring_to_poly(
       },
     }
 
+def chunk_by_area(feature, limit = AREA_LIMIT):
+  geom = feature.get('geometry', feature)
+  if area(geom) < AREA_LIMIT:
+    return feature
+
+  shapely_poly = shapely.from_geojson(json.dumps(feature))
+  geoms = [
+    json.loads(elt) for elt in shapely.to_geojson(
+      katana(shapely_poly, 0.01)
+    ).tolist()
+  ]
+
+  return [{
+    "type": "Feature",
+    "properties": {},
+    "geometry": geometry,
+  } for geometry in geoms]
+
 def convert_to_geojson_poly(feature, width = DEFAULT_WIDTH):
-  geom = feature['geometry']
+  geom = feature.get('geometry', feature)
   t = geom['type']
 
   if t == 'LineString':
@@ -189,7 +247,7 @@ def convert_to_geojson_poly(feature, width = DEFAULT_WIDTH):
   elif t == 'Point':
     return geojson_point_to_poly(geom, width)
   elif t == 'Polygon' or t == 'MultiPolygon':
-    return geom
+    return chunk_by_area(feature)
   else:
     raise Exception(f'Unsupported type: {t}')
 
@@ -212,6 +270,14 @@ def transform_shapefile_to_geojson_polygons(file_path, out_path = None, width = 
   else:
     polygons = [convert_to_geojson_poly(f, width) for f in features]
 
+  new_polygons = []
+  for maybe_polys in polygons:
+    if type(maybe_polys) is list:
+      for poly in maybe_polys:
+          new_polygons.append(poly)
+    else:
+      new_polygons.append(maybe_polys)
+
   if out_path:
     if verbose:
       print(f'writing to {out_path}...')
@@ -219,10 +285,10 @@ def transform_shapefile_to_geojson_polygons(file_path, out_path = None, width = 
     with open(out_path, 'w') as f:
       json.dump({
         'type': 'FeatureCollection',
-        'features': polygons,
+        'features': new_polygons,
         }, f)
 
-  return polygons
+  return new_polygons
 
 def transform_csv_to_geojson_polygons(file_path, out_path = None, width = DEFAULT_WIDTH, verbose = False):
   mp_lim = min(
