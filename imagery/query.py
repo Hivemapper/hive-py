@@ -97,6 +97,14 @@ def query_frames(geojson_file, start_day, end_day, output_dir, authorization, ve
     features += fc.get('features', [fc])
 
   features = [geo.convert_to_geojson_poly(f) for f in features]
+  new_features = []
+  for feature in features:
+    if type(feature) is list:
+      for f in feature:
+        new_features.append(f)
+    else:
+      new_features.append(feature)
+  features = new_features
 
   assert(len(features))
 
