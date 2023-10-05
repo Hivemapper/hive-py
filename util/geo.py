@@ -1,4 +1,5 @@
 import argparse
+import csv
 import geopy.distance
 import json
 import math
@@ -8,6 +9,8 @@ from geographiclib.geodesic import Geodesic
 from tqdm import tqdm
 from pyproj import Transformer
 
+AREA_LIMIT = 1000000
+MAX_MULTIPOLYGON_CARDINALITY = 8
 DEFAULT_WIDTH = 25
 MERCATOR_TO_WGS = Transformer.from_crs("EPSG:3857", "EPSG:4326", always_xy=True)
 WGS_TO_MERCATOR = Transformer.from_crs("EPSG:4326", "EPSG:3857", always_xy=True)
@@ -28,6 +31,18 @@ def angle_between_segments(p0, p1, p2):
 def get_coords(feature):
   geo = feature.get('geometry', feature)
   return geo.get('coordinates')
+
+def combine_polys(polys):
+  return {
+    "type": "Feature",
+    "properties": {},
+    "geometry": {
+      "type": "MultiPolygon",
+      "coordinates": [
+        poly.get('geometry', poly).get('coordinates') for poly in polys
+      ],
+    },
+  }
 
 def filter_small_segments(linestring, min_length):
   coords = get_coords(linestring)
@@ -128,16 +143,7 @@ def geojson_linestring_to_poly(
     } for line in lines]
 
     polys = [geojson_linestring_to_poly(line) for line in linestrings]
-    return {
-      "type": "Feature",
-      "properties": {},
-      "geometry": {
-        "type": "MultiPolygon",
-        "coordinates": [
-          poly.get('geometry').get('coordinates') for poly in polys
-        ],
-      },
-    }
+    return combine_polys(polys)
   else:
     p0x, p0y = WGS_TO_MERCATOR.transform(*filtered_coords[0])
     p1x, p1y = WGS_TO_MERCATOR.transform(*filtered_coords[1])
@@ -218,17 +224,87 @@ def transform_shapefile_to_geojson_polygons(file_path, out_path = None, width = 
 
   return polygons
 
+def transform_csv_to_geojson_polygons(file_path, out_path = None, width = DEFAULT_WIDTH, verbose = False):
+  mp_lim = min(
+    MAX_MULTIPOLYGON_CARDINALITY,
+    max(2, AREA_LIMIT // (width ** 2)) - 1,
+  )
+
+  geojson = {}
+
+  if verbose:
+    print(f'reading {file_path} as geojson...')
+  coords = []
+  with open(file_path, newline='') as csvfile:
+    reader = csv.reader(csvfile)
+    lon_idx = -1
+    lat_idx = -1
+    for row in reader:
+      # figure out the coordinates indices
+      if lon_idx == -1 or lat_idx == -1:
+        for i, col in enumerate(row):
+          if col.lower() == 'latitude' or col.lower() == 'lat':
+            lat_idx = i
+          elif col.lower() == 'longitude' or col.lower() == 'lon':
+            lon_idx = i
+        continue
+
+      lon = row[lon_idx]
+      lat = row[lat_idx]
+      coords.append((lon, lat))
+
+  if verbose:
+    print(f'converting {len(coords)} coords to polygons...')
+    polygons = []
+    for p in tqdm(coords):
+      polygons.append(point_to_square(p, width))
+  else:
+    polygons = [point_to_square(p, width) for p in coords]
+
+  multi_polys = []
+  for i in range(math.ceil(len(polygons) / mp_lim)):
+    multi_polys.append(
+      combine_polys(
+        polygons[i * mp_lim : (i + 1) * mp_lim]
+      )
+    )
+
+  if out_path:
+    if verbose:
+      print(f'writing to {out_path}...')
+
+    with open(out_path, 'w') as f:
+      json.dump({
+        'type': 'FeatureCollection',
+        'features': multi_polys,
+        }, f)
+
+  return polygons
+
 if __name__ == '__main__':
   parser = argparse.ArgumentParser()
-  parser.add_argument('-s', '--shapefile', type=str, required=True)
+  parser.add_argument('-s', '--shapefile', type=str, required=False)
+  parser.add_argument('-c', '--csvfile', type=str, required=False)
   parser.add_argument('-o', '--output_json', type=str, required=True)
   parser.add_argument('-w', '--width', type=int, default=DEFAULT_WIDTH)
   parser.add_argument('-q', '--quiet', action='store_true')
   args = parser.parse_args()
 
-  transform_shapefile_to_geojson_polygons(
-    args.shapefile,
-    args.output_json,
-    args.width,
-    not args.quiet,
-  )
+  if not args.shapefile and not args.csvfile:
+    print('No input shp or csv')
+  elif args.shapefile and args.csvfile:
+    print('Too many inputs (shp and csv)')
+  elif args.shapefile:
+    transform_shapefile_to_geojson_polygons(
+      args.shapefile,
+      args.output_json,
+      args.width,
+      not args.quiet,
+    )
+  elif args.csv:
+    transform_csv_to_geojson_polygons(
+      args.csvfile,
+      args.output_json,
+      args.width,
+      not args.quiet,
+    )
