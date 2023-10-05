@@ -16,6 +16,7 @@ from area import area
 from datetime import datetime, timedelta
 from itertools import repeat
 from geographiclib.geodesic import Geodesic
+from tqdm import tqdm
 from util import geo
 
 DEFAULT_STITCH_MAX_DISTANCE = 20
@@ -70,7 +71,8 @@ def query_imagery(features, weeks, authorization, local_dir, verbose=False):
   }
   frames = []
 
-  for feature in features:
+  itr = features if not verbose else tqdm(features)
+  for feature in itr:
     data = feature.get('geometry', feature)
     assert(area(data) <= MAX_AREA)
 
@@ -93,6 +95,8 @@ def query_frames(geojson_file, start_day, end_day, output_dir, authorization, ve
   with open(geojson_file, 'r') as f:
     fc = json.load(f)
     features += fc.get('features', [fc])
+
+  features = [geo.convert_to_geojson_poly(f) for f in features]
 
   assert(len(features))
 
@@ -305,6 +309,9 @@ def query(
   if file_path.endswith('.shp'):
     geojson_file = f'{file_path[0 : len(file_path) - 4]}.geojson_{str(uuid.uuid4())}'
     geo.transform_shapefile_to_geojson_polygons(file_path, geojson_file, width, verbose)
+  elif file_path.endswith('.csv'):
+    geojson_file = f'{file_path[0 : len(file_path) - 4]}.geojson_{str(uuid.uuid4())}'
+    geo.transform_csv_to_geojson_polygons(file_path, geojson_file, width, verbose)        
   else:
     geojson_file = file_path
   frames = query_frames(geojson_file, start_day, end_day, output_dir, authorization, verbose)
@@ -331,7 +338,7 @@ def query(
 
 if __name__ == '__main__':
   parser = argparse.ArgumentParser()
-  parser.add_argument('-i', '--geojson', type=str, required=True)
+  parser.add_argument('-i', '--input_file', type=str, required=True)
   parser.add_argument('-s', '--start_day', type=valid_date, required=True)
   parser.add_argument('-e', '--end_day', type=valid_date, required=True)
   parser.add_argument('-x', '--stitch', action='store_true')
@@ -340,14 +347,14 @@ if __name__ == '__main__':
   parser.add_argument('-z', '--max_angle', type=float, default=DEFAULT_STITCH_MAX_LAG)
   parser.add_argument('-o', '--output_dir', type=str, required=True)
   parser.add_argument('-g', '--export_geojson', action='store_true')
-  parser.add_argument('-w', '--width', type=int)
+  parser.add_argument('-w', '--width', type=int, default=DEFAULT_WIDTH)
   parser.add_argument('-a', '--authorization', type=str, required=True)
   parser.add_argument('-c', '--num_threads', type=int, default=DEFAULT_THREADS)
   parser.add_argument('-v', '--verbose', action='store_true')
   args = parser.parse_args()
 
   query(
-    args.geojson,
+    args.input_file,
     args.start_day,
     args.end_day,
     args.output_dir,
