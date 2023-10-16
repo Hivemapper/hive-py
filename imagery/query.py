@@ -45,21 +45,49 @@ def download_file(url, local_path, verbose=False):
     with open(local_path, 'wb') as f:
       shutil.copyfileobj(r.raw, f)
 
-def download_files(frames, local_dir, preserve_dirs = True, num_threads=DEFAULT_THREADS, verbose=False):
+def download_files(
+  frames,
+  local_dir,
+  preserve_dirs=True,
+  merge_metadata=False,
+  num_threads=DEFAULT_THREADS,
+  verbose=False,
+):
   urls = [frame.get('url') for frame in frames]
   if preserve_dirs:
     img_paths = [url.split('.com/')[1].split('?')[0] for url in urls]
-    meta_paths = [url.split('.com/')[1].split('?')[0].replace('keyframes', 'metadata') for url in urls]
+    meta_paths = [
+      url.split('.com/')[1].split('?')[0]
+        .replace('keyframes', 'metadata')
+        .replace('.jpg', '.json')
+      for url in urls
+    ]
   else:
     img_paths = ["{}.jpg".format(i) for i in range(len(frames))]
     meta_paths = ["{}.json".format(i) for i in range(len(frames))]
   local_img_paths = [os.path.join(local_dir, path) for path in img_paths]
   local_meta_paths = [os.path.join(local_dir, path) for path in meta_paths]
-  for frame, meta_path in zip(frames, local_meta_paths):
-    os.makedirs(os.path.dirname(meta_path), exist_ok=True)
-    with open(meta_path, 'w') as f:
-      meta = {key : frame[key] for key in frame if key != 'url'}
+
+  if len(frames) == 0:
+    return
+
+  if merge_metadata:
+    local_meta_path = os.path.join(local_dir, 'meta.json')
+    os.makedirs(os.path.dirname(local_meta_path), exist_ok=True)
+    meta = {
+      img_path:
+        { key: frame[key] for key in frame if key != 'url' }
+        for frame in frames
+      for img_path in img_paths
+    }
+    with open(local_meta_path, 'w') as f:
       json.dump(meta, f, indent=4)
+  else:
+    for frame, meta_path in zip(frames, local_meta_paths):
+      os.makedirs(os.path.dirname(meta_path), exist_ok=True)
+      with open(meta_path, 'w') as f:
+        meta = {key : frame[key] for key in frame if key != 'url'}
+        json.dump(meta, f, indent=4)
 
   with concurrent.futures.ThreadPoolExecutor(max_workers=num_threads) as executor:
     executor.map(download_file, urls, local_img_paths, repeat(verbose))
@@ -311,6 +339,7 @@ def query(
   max_lag=DEFAULT_STITCH_MAX_LAG,
   max_angle=DEFAULT_STITCH_MAX_ANGLE,
   width=DEFAULT_WIDTH,
+  merge_metadata=False,
   num_threads=DEFAULT_THREADS,
   verbose=False,
 ):
@@ -334,11 +363,11 @@ def query(
       for i, frame_set in enumerate(stitched):
         folder = f'{str(uuid.uuid4())}-{str(i)}'
         local_dir = os.path.join(output_dir, folder)
-        download_files(frame_set, local_dir, False, num_threads, verbose)
+        download_files(frame_set, local_dir, False, merge_metadata, num_threads, verbose)
       if export_geojson:
         write_geojson(stitched, output_dir, False, verbose)
     else:
-      download_files(frames, output_dir, True, num_threads, verbose)
+      download_files(frames, output_dir, True, merge_metadata, num_threads, verbose)
       if export_geojson:
         write_geojson([frames], output_dir, True, verbose)
     
@@ -356,6 +385,7 @@ if __name__ == '__main__':
   parser.add_argument('-o', '--output_dir', type=str, required=True)
   parser.add_argument('-g', '--export_geojson', action='store_true')
   parser.add_argument('-w', '--width', type=int, default=DEFAULT_WIDTH)
+  parser.add_argument('-M', '--merge_metadata', action='store_true')
   parser.add_argument('-a', '--authorization', type=str, required=True)
   parser.add_argument('-c', '--num_threads', type=int, default=DEFAULT_THREADS)
   parser.add_argument('-v', '--verbose', action='store_true')
@@ -373,6 +403,7 @@ if __name__ == '__main__':
     args.max_lag,
     args.max_angle,
     args.width,
+    args.merge_metadata,
     args.num_threads,
     args.verbose,
   )
