@@ -92,7 +92,7 @@ def download_files(
   with concurrent.futures.ThreadPoolExecutor(max_workers=num_threads) as executor:
     executor.map(download_file, urls, local_img_paths, repeat(verbose))
 
-def query_imagery(features, weeks, authorization, local_dir, verbose=False):
+def query_imagery(features, weeks, custom_ids, authorization, local_dir, verbose=False):
   headers = {
     "content-type": "application/json",
     "authorization": f'Basic {authorization}',
@@ -100,7 +100,7 @@ def query_imagery(features, weeks, authorization, local_dir, verbose=False):
   frames = []
 
   itr = features if not verbose else tqdm(features)
-  for feature in itr:
+  for feature, custom_id in zip(itr, custom_ids):
     data = feature.get('geometry', feature)
     assert(area(data) <= MAX_AREA)
 
@@ -112,7 +112,11 @@ def query_imagery(features, weeks, authorization, local_dir, verbose=False):
       with requests.post(url, data=json.dumps(data), headers=headers) as r:
         r.raise_for_status()
         resp = r.json()
-        frames += resp.get('frames', [])
+        results = resp.get('frames', [])
+        if custom_id is not None:
+          for result in results:
+            result['id'] = custom_id
+        frames += results
 
   return frames
 
@@ -123,6 +127,11 @@ def query_frames(geojson_file, start_day, end_day, output_dir, authorization, ve
   with open(geojson_file, 'r') as f:
     fc = json.load(f)
     features += fc.get('features', [fc])
+
+  custom_ids = []
+  for feature in features:
+    properties = feature.get('properties', {})
+    custom_ids.append(properties.get('id', None))
 
   features = [geo.convert_to_geojson_poly(f) for f in features]
   new_features = []
@@ -147,8 +156,7 @@ def query_frames(geojson_file, start_day, end_day, output_dir, authorization, ve
 
   if verbose:
     print(f'Querying {len(features)} features for imagery across {len(weeks)} weeks...')
-
-  frames = query_imagery(features, weeks, authorization, output_dir, verbose)
+  frames = query_imagery(features, weeks, custom_ids, authorization, output_dir, verbose)
   filtered_frames = [frame for frame in frames if frame_within_day_bounds(frame, start_day, end_day)]
 
   return filtered_frames
@@ -340,6 +348,7 @@ def query(
   max_angle=DEFAULT_STITCH_MAX_ANGLE,
   width=DEFAULT_WIDTH,
   merge_metadata=False,
+  custom_id_field=None,
   num_threads=DEFAULT_THREADS,
   verbose=False,
 ):
@@ -348,7 +357,7 @@ def query(
     geo.transform_shapefile_to_geojson_polygons(file_path, geojson_file, width, verbose)
   elif file_path.endswith('.csv'):
     geojson_file = f'{file_path[0 : len(file_path) - 4]}.geojson_{str(uuid.uuid4())}'
-    geo.transform_csv_to_geojson_polygons(file_path, geojson_file, width, verbose)        
+    geo.transform_csv_to_geojson_polygons(file_path, geojson_file, width, custom_id_field, verbose)        
   else:
     geojson_file = file_path
   frames = query_frames(geojson_file, start_day, end_day, output_dir, authorization, verbose)
@@ -386,6 +395,7 @@ if __name__ == '__main__':
   parser.add_argument('-g', '--export_geojson', action='store_true')
   parser.add_argument('-w', '--width', type=int, default=DEFAULT_WIDTH)
   parser.add_argument('-M', '--merge_metadata', action='store_true')
+  parser.add_argument('-I', '--custom_id_field', type=str)
   parser.add_argument('-a', '--authorization', type=str, required=True)
   parser.add_argument('-c', '--num_threads', type=int, default=DEFAULT_THREADS)
   parser.add_argument('-v', '--verbose', action='store_true')
@@ -404,6 +414,7 @@ if __name__ == '__main__':
     args.max_angle,
     args.width,
     args.merge_metadata,
+    args.custom_id_field,
     args.num_threads,
     args.verbose,
   )

@@ -113,7 +113,7 @@ def point_to_square(coord, width):
   half_width = float(width) / 2.0
   new_coords = []
 
-  cx, cy = WGS_TO_MERCATOR.transform(*coord)
+  cx, cy = WGS_TO_MERCATOR.transform(*coord[0:2])
 
   new_coords.append(MERCATOR_TO_WGS.transform(cx - half_width, cy - half_width))
   new_coords.append(MERCATOR_TO_WGS.transform(cx + half_width, cy - half_width))
@@ -121,9 +121,13 @@ def point_to_square(coord, width):
   new_coords.append(MERCATOR_TO_WGS.transform(cx - half_width, cy + half_width))
   new_coords.append(new_coords[0])
 
+  properties = {}
+  if len(coord) > 2 and coord[2] is not None:
+    properties['id'] = coord[2]
+
   return {
     "type": "Feature",
-    "properties": {},
+    "properties": properties,
     "geometry": {
       "type": "Polygon",
       "coordinates": [new_coords],
@@ -290,7 +294,13 @@ def transform_shapefile_to_geojson_polygons(file_path, out_path = None, width = 
 
   return new_polygons
 
-def transform_csv_to_geojson_polygons(file_path, out_path = None, width = DEFAULT_WIDTH, verbose = False):
+def transform_csv_to_geojson_polygons(
+  file_path,
+  out_path = None,
+  width = DEFAULT_WIDTH,
+  custom_id_field = None,
+  verbose = False
+):
   mp_lim = min(
     MAX_MULTIPOLYGON_CARDINALITY,
     max(2, AREA_LIMIT // (width ** 2)) - 1,
@@ -305,19 +315,23 @@ def transform_csv_to_geojson_polygons(file_path, out_path = None, width = DEFAUL
     reader = csv.reader(csvfile)
     lon_idx = -1
     lat_idx = -1
+    custom_id_idx = -1
     for row in reader:
       # figure out the coordinates indices
-      if lon_idx == -1 or lat_idx == -1:
+      if lon_idx == -1 or lat_idx == -1 or (custom_id_idx == -1 and custom_id_field is not None):
         for i, col in enumerate(row):
           if col.lower() == 'latitude' or col.lower() == 'lat':
             lat_idx = i
           elif col.lower() == 'longitude' or col.lower() == 'lon':
             lon_idx = i
+          elif custom_id_field is not None and col.lower() == custom_id_field:
+            custom_id_idx = i
         continue
 
       lon = row[lon_idx]
       lat = row[lat_idx]
-      coords.append((lon, lat))
+      custom_id = None if custom_id_idx == -1 else row[custom_id_idx]
+      coords.append((lon, lat, custom_id))
 
   if verbose:
     print(f'converting {len(coords)} coords to polygons...')
@@ -327,13 +341,16 @@ def transform_csv_to_geojson_polygons(file_path, out_path = None, width = DEFAUL
   else:
     polygons = [point_to_square(p, width) for p in coords]
 
-  multi_polys = []
-  for i in range(math.ceil(len(polygons) / mp_lim)):
-    multi_polys.append(
-      combine_polys(
-        polygons[i * mp_lim : (i + 1) * mp_lim]
+  if custom_id_idx > -1 and custom_id_field is not None:
+    multi_polys = polygons
+  else:
+    multi_polys = []
+    for i in range(math.ceil(len(polygons) / mp_lim)):
+      multi_polys.append(
+        combine_polys(
+          polygons[i * mp_lim : (i + 1) * mp_lim]
+        )
       )
-    )
 
   if out_path:
     if verbose:
@@ -353,6 +370,7 @@ if __name__ == '__main__':
   parser.add_argument('-c', '--csvfile', type=str, required=False)
   parser.add_argument('-o', '--output_json', type=str, required=True)
   parser.add_argument('-w', '--width', type=int, default=DEFAULT_WIDTH)
+  parser.add_argument('-I', '--custom_id_field', type=str)
   parser.add_argument('-q', '--quiet', action='store_true')
   args = parser.parse_args()
 
@@ -372,5 +390,6 @@ if __name__ == '__main__':
       args.csvfile,
       args.output_json,
       args.width,
+      args.custom_id_field,
       not args.quiet,
     )
