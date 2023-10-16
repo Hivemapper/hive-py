@@ -30,6 +30,7 @@ options:
   -g, --export_geojson
   -a AUTHORIZATION, --authorization AUTHORIZATION
   -w WIDTH, --width WIDTH
+  -M, --merge_metadata
   -c NUM_THREADS, --num_threads NUM_THREADS
   -v, --verbose
 ```
@@ -49,17 +50,17 @@ download_files(frames, output_dir)
 ## Example
 ### Query imagery for a GeoJSON Polygon Feature
 ```
-python -m imagery.query -v --input_file "test_feature.json" --start_day "2023-07-28" --end_day "2023-07-28" --output_dir "temp" --authorization <your encoded key string>
+python -m imagery.query -v -M --input_file "test_feature.json" --start_day "2023-07-28" --end_day "2023-07-28" --output_dir "temp" --authorization <your encoded key string>
 ```
 
 ### Query imagery for a GeoJSON Polygon FeatureCollection; stitch together; save a GeoJSON of LineStrings
 ```
-python -m imagery.query -v -x -g --input_file "test_feature_col.json" --start_day "2023-07-28" --end_day "2023-07-28" --output_dir "temp" --authorization <your encoded key string>
+python -m imagery.query -v -M -x -g --input_file "test_feature_col.json" --start_day "2023-07-28" --end_day "2023-07-28" --output_dir "temp" --authorization <your encoded key string>
 ```
 
 ### Query imagery for a GeoJSON Polygon FeatureCollection; save a GeoJSON of points
 ```
-python -m imagery.query -v -g --input_file "test_feature_col.json" --start_day "2023-07-28" --end_day "2023-07-28" --output_dir "temp" --authorization <your encoded key string>
+python -m imagery.query -v -M -g --input_file "test_feature_col.json" --start_day "2023-07-28" --end_day "2023-07-28" --output_dir "temp" --authorization <your encoded key string>
 ```
 
 ### Converting .shp to Hivemapper-optimized GeoJSON
