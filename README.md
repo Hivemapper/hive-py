@@ -15,11 +15,12 @@ pip install -r requirements.txt
 ### CLI
 ```
 > python -m imagery.query
-usage: query.py [-h] -i GEOJSON -s START_DAY -e END_DAY [-x] [-d MAX_DIST] [-l MAX_LAG] [-z MAX_ANGLE] -o OUTPUT_DIR [-g] -a AUTHORIZATION [-c NUM_THREADS] [-v]
+usage: query.py [-h] -i INPUT_FILE -s START_DAY -e END_DAY [-x] [-d MAX_DIST] [-l MAX_LAG] [-z MAX_ANGLE] -o OUTPUT_DIR [-g] [-w WIDTH] [-M] [-I CUSTOM_ID_FIELD] -a
+                AUTHORIZATION [-c NUM_THREADS] [-v]
 
 options:
   -h, --help            show this help message and exit
-  -i INPUT_FILE, --input_file GEOJSON
+  -i INPUT_FILE, --input_file INPUT_FILE
   -s START_DAY, --start_day START_DAY
   -e END_DAY, --end_day END_DAY
   -x, --stitch
@@ -28,8 +29,10 @@ options:
   -z MAX_ANGLE, --max_angle MAX_ANGLE
   -o OUTPUT_DIR, --output_dir OUTPUT_DIR
   -g, --export_geojson
-  -a AUTHORIZATION, --authorization AUTHORIZATION
   -w WIDTH, --width WIDTH
+  -M, --merge_metadata
+  -I CUSTOM_ID_FIELD, --custom_id_field CUSTOM_ID_FIELD
+  -a AUTHORIZATION, --authorization AUTHORIZATION
   -c NUM_THREADS, --num_threads NUM_THREADS
   -v, --verbose
 ```
@@ -49,29 +52,30 @@ download_files(frames, output_dir)
 ## Example
 ### Query imagery for a GeoJSON Polygon Feature
 ```
-python -m imagery.query -v --input_file "test_feature.json" --start_day "2023-07-28" --end_day "2023-07-28" --output_dir "temp" --authorization <your encoded key string>
+python -m imagery.query -v -M --input_file "test_feature.json" --start_day "2023-07-28" --end_day "2023-07-28" --output_dir "temp" --authorization <your encoded key string>
 ```
 
 ### Query imagery for a GeoJSON Polygon FeatureCollection; stitch together; save a GeoJSON of LineStrings
 ```
-python -m imagery.query -v -x -g --input_file "test_feature_col.json" --start_day "2023-07-28" --end_day "2023-07-28" --output_dir "temp" --authorization <your encoded key string>
+python -m imagery.query -v -M -x -g --input_file "test_feature_col.json" --start_day "2023-07-28" --end_day "2023-07-28" --output_dir "temp" --authorization <your encoded key string>
 ```
 
 ### Query imagery for a GeoJSON Polygon FeatureCollection; save a GeoJSON of points
 ```
-python -m imagery.query -v -g --input_file "test_feature_col.json" --start_day "2023-07-28" --end_day "2023-07-28" --output_dir "temp" --authorization <your encoded key string>
+python -m imagery.query -v -M -g --input_file "test_feature_col.json" --start_day "2023-07-28" --end_day "2023-07-28" --output_dir "temp" --authorization <your encoded key string>
 ```
 
 ### Converting .shp to Hivemapper-optimized GeoJSON
 ```
 > python -m util.geo -h
-usage: geo.py [-h] -s SHAPEFILE -o OUTPUT_JSON [-w WIDTH] [-q]
+usage: geo.py [-h] [-s SHAPEFILE] [-c CSVFILE] -o OUTPUT_JSON [-w WIDTH] [-I CUSTOM_ID_FIELD] [-q]
 
 options:
   -h, --help            show this help message and exit
   -s SHAPEFILE, --shapefile SHAPEFILE
+  -c CSVFILE, --csvfile CSVFILE
   -o OUTPUT_JSON, --output_json OUTPUT_JSON
   -w WIDTH, --width WIDTH
+  -I CUSTOM_ID_FIELD, --custom_id_field CUSTOM_ID_FIELD
   -q, --quiet
-
 ```
