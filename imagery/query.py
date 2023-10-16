@@ -25,6 +25,7 @@ DEFAULT_STITCH_MAX_ANGLE = 30
 DEFAULT_THREADS = 20
 DEFAULT_WIDTH = 25
 IMAGERY_API_URL = 'https://hivemapper.com/api/developer/imagery/poly'
+LATEST_IMAGERY_API_URL = 'https://hivemapper.com/api/developer/latest/poly'
 MAX_AREA = 1000 * 1000 # 1km^2
 
 def valid_date(s):
@@ -120,6 +121,33 @@ def query_imagery(features, weeks, custom_ids, authorization, local_dir, verbose
 
   return frames
 
+def query_latest_imagery(features, custom_ids, authorization, local_dir, verbose=False):
+  headers = {
+    "content-type": "application/json",
+    "authorization": f'Basic {authorization}',
+  }
+  frames = []
+
+  itr = features if not verbose else tqdm(features)
+  for feature, custom_id in zip(itr, custom_ids):
+    data = feature.get('geometry', feature)
+    assert(area(data) <= MAX_AREA)
+
+    url = LATEST_IMAGERY_API_URL
+    if verbose:
+      print(url)
+
+    with requests.post(url, data=json.dumps(data), headers=headers) as r:
+      r.raise_for_status()
+      resp = r.json()
+      results = resp.get('frames', [])
+      if custom_id is not None:
+        for result in results:
+          result['id'] = custom_id
+      frames += results
+
+  return frames
+
 def query_frames(geojson_file, start_day, end_day, output_dir, authorization, verbose = False):
   assert(start_day <= end_day)
 
@@ -160,6 +188,37 @@ def query_frames(geojson_file, start_day, end_day, output_dir, authorization, ve
   filtered_frames = [frame for frame in frames if frame_within_day_bounds(frame, start_day, end_day)]
 
   return filtered_frames
+
+def query_latest_frames(geojson_file, output_dir, authorization, verbose = False):
+  features = []
+  with open(geojson_file, 'r') as f:
+    fc = json.load(f)
+    features += fc.get('features', [fc])
+
+  custom_ids = []
+  for feature in features:
+    properties = feature.get('properties', {})
+    custom_ids.append(properties.get('id', None))
+
+  features = [geo.convert_to_geojson_poly(f) for f in features]
+  new_features = []
+  for feature in features:
+    if type(feature) is list:
+      for f in feature:
+        new_features.append(f)
+    else:
+      new_features.append(feature)
+  features = new_features
+
+  assert(len(features))
+
+  if verbose:
+    print(f'Querying {len(features)} features for imagery across for latest...')
+  frames = query_latest_imagery(features, custom_ids, authorization, output_dir, verbose)
+  filtered_frames = [frame for frame in frames if frame_within_day_bounds(frame, start_day, end_day)]
+
+  return filtered_frames
+
 
 def frame_within_day_bounds(frame, start_day, end_day):
   d = datetime.fromisoformat(frame.get('timestamp').split('.')[0])
@@ -341,6 +400,7 @@ def query(
   end_day,
   output_dir,
   authorization,
+  latest=False,
   export_geojson=False,
   should_stitch=False,
   max_dist=DEFAULT_STITCH_MAX_DISTANCE,
@@ -360,7 +420,11 @@ def query(
     geo.transform_csv_to_geojson_polygons(file_path, geojson_file, width, custom_id_field, verbose)        
   else:
     geojson_file = file_path
-  frames = query_frames(geojson_file, start_day, end_day, output_dir, authorization, verbose)
+
+  if latest:
+    frames = query_latest_frames(geojson_file, output_dir, authorization, verbose)
+  else:
+    frames = query_frames(geojson_file, start_day, end_day, output_dir, authorization, verbose)
   print(f'Found {len(frames)} images!')
 
   if frames:
@@ -385,8 +449,9 @@ def query(
 if __name__ == '__main__':
   parser = argparse.ArgumentParser()
   parser.add_argument('-i', '--input_file', type=str, required=True)
-  parser.add_argument('-s', '--start_day', type=valid_date, required=True)
-  parser.add_argument('-e', '--end_day', type=valid_date, required=True)
+  parser.add_argument('-s', '--start_day', type=valid_date)
+  parser.add_argument('-e', '--end_day', type=valid_date)
+  parser.add_argument('-L', '--latest', action='store_true')
   parser.add_argument('-x', '--stitch', action='store_true')
   parser.add_argument('-d', '--max_dist', type=float, default=DEFAULT_STITCH_MAX_DISTANCE)
   parser.add_argument('-l', '--max_lag', type=float, default=DEFAULT_STITCH_MAX_ANGLE)
@@ -407,6 +472,7 @@ if __name__ == '__main__':
     args.end_day,
     args.output_dir,
     args.authorization,
+    args.latest,
     args.export_geojson,
     args.stitch,
     args.max_dist,

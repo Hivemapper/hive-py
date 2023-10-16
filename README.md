@@ -15,14 +15,15 @@ pip install -r requirements.txt
 ### CLI
 ```
 > python -m imagery.query
-usage: query.py [-h] -i INPUT_FILE -s START_DAY -e END_DAY [-x] [-d MAX_DIST] [-l MAX_LAG] [-z MAX_ANGLE] -o OUTPUT_DIR [-g] [-w WIDTH] [-M] [-I CUSTOM_ID_FIELD] -a
-                AUTHORIZATION [-c NUM_THREADS] [-v]
+usage: query.py [-h] -i INPUT_FILE [-s START_DAY] [-e END_DAY] [-L] [-x] [-d MAX_DIST] [-l MAX_LAG] [-z MAX_ANGLE] -o OUTPUT_DIR [-g] [-w WIDTH] [-M] [-I CUSTOM_ID_FIELD]
+                -a AUTHORIZATION [-c NUM_THREADS] [-v]
 
 options:
   -h, --help            show this help message and exit
   -i INPUT_FILE, --input_file INPUT_FILE
   -s START_DAY, --start_day START_DAY
   -e END_DAY, --end_day END_DAY
+  -L, --latest
   -x, --stitch
   -d MAX_DIST, --max_dist MAX_DIST
   -l MAX_LAG, --max_lag MAX_LAG
