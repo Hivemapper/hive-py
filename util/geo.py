@@ -126,7 +126,6 @@ def point_to_square(coord, width):
   if len(coord) > 2 and coord[2] is not None:
     properties['id'] = coord[2]
   if len(coord) > 3 and coord[3] is not None:
-    print("hi", coord[3])
     min_date = datetime.datetime.fromisoformat(coord[3])
     properties['min_date'] = min_date.strftime('%Y-%m-%d')
 
