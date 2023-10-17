@@ -16,7 +16,7 @@ pip install -r requirements.txt
 ```
 > python -m imagery.query
 usage: query.py [-h] -i INPUT_FILE [-s START_DAY] [-e END_DAY] [-L] [-x] [-d MAX_DIST] [-l MAX_LAG] [-z MAX_ANGLE] -o OUTPUT_DIR [-g] [-w WIDTH] [-M] [-I CUSTOM_ID_FIELD]
-                -a AUTHORIZATION [-c NUM_THREADS] [-v]
+                [-S CUSTOM_MIN_DATE_FIELD] -a AUTHORIZATION [-c NUM_THREADS] [-v]
 
 options:
   -h, --help            show this help message and exit
@@ -33,6 +33,7 @@ options:
   -w WIDTH, --width WIDTH
   -M, --merge_metadata
   -I CUSTOM_ID_FIELD, --custom_id_field CUSTOM_ID_FIELD
+  -S CUSTOM_MIN_DATE_FIELD, --custom_min_date_field CUSTOM_MIN_DATE_FIELD
   -a AUTHORIZATION, --authorization AUTHORIZATION
   -c NUM_THREADS, --num_threads NUM_THREADS
   -v, --verbose
@@ -69,7 +70,7 @@ python -m imagery.query -v -M -g --input_file "test_feature_col.json" --start_da
 ### Converting .shp to Hivemapper-optimized GeoJSON
 ```
 > python -m util.geo -h
-usage: geo.py [-h] [-s SHAPEFILE] [-c CSVFILE] -o OUTPUT_JSON [-w WIDTH] [-I CUSTOM_ID_FIELD] [-q]
+usage: geo.py [-h] [-s SHAPEFILE] [-c CSVFILE] -o OUTPUT_JSON [-w WIDTH] [-I CUSTOM_ID_FIELD] [-S CUSTOM_MIN_DATE_FIELD] [-q]
 
 options:
   -h, --help            show this help message and exit
@@ -78,5 +79,6 @@ options:
   -o OUTPUT_JSON, --output_json OUTPUT_JSON
   -w WIDTH, --width WIDTH
   -I CUSTOM_ID_FIELD, --custom_id_field CUSTOM_ID_FIELD
+  -S CUSTOM_MIN_DATE_FIELD, --custom_min_date_field CUSTOM_MIN_DATE_FIELD
   -q, --quiet
 ```

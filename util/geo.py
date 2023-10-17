@@ -1,5 +1,6 @@
 import argparse
 import csv
+import datetime
 import geopy.distance
 import json
 import math
@@ -124,6 +125,10 @@ def point_to_square(coord, width):
   properties = {}
   if len(coord) > 2 and coord[2] is not None:
     properties['id'] = coord[2]
+  if len(coord) > 3 and coord[3] is not None:
+    print("hi", coord[3])
+    min_date = datetime.datetime.fromisoformat(coord[3])
+    properties['min_date'] = min_date.strftime('%Y-%m-%d')
 
   return {
     "type": "Feature",
@@ -299,6 +304,7 @@ def transform_csv_to_geojson_polygons(
   out_path = None,
   width = DEFAULT_WIDTH,
   custom_id_field = None,
+  custom_min_date_field = None,
   verbose = False
 ):
   mp_lim = min(
@@ -316,22 +322,28 @@ def transform_csv_to_geojson_polygons(
     lon_idx = -1
     lat_idx = -1
     custom_id_idx = -1
+    custom_min_date_idx = -1
     for row in reader:
       # figure out the coordinates indices
-      if lon_idx == -1 or lat_idx == -1 or (custom_id_idx == -1 and custom_id_field is not None):
+      needs_id_field = custom_id_idx == -1 and custom_id_field is not None
+      needs_min_date_field = custom_min_date_field == -1 and custom_min_date_field is not None
+      if lon_idx == -1 or lat_idx == -1 or needs_id_field or needs_min_date_field:
         for i, col in enumerate(row):
           if col.lower() == 'latitude' or col.lower() == 'lat':
             lat_idx = i
           elif col.lower() == 'longitude' or col.lower() == 'lon':
             lon_idx = i
-          elif custom_id_field is not None and col.lower() == custom_id_field:
+          elif custom_id_field is not None and col == custom_id_field:
             custom_id_idx = i
+          elif custom_min_date_field is not None and col == custom_min_date_field:
+            custom_min_date_idx = i
         continue
 
       lon = row[lon_idx]
       lat = row[lat_idx]
       custom_id = None if custom_id_idx == -1 else row[custom_id_idx]
-      coords.append((lon, lat, custom_id))
+      custom_min_date = None if custom_min_date_field == -1 else row[custom_min_date_idx]
+      coords.append((lon, lat, custom_id, custom_min_date))
 
   if verbose:
     print(f'converting {len(coords)} coords to polygons...')
@@ -341,7 +353,9 @@ def transform_csv_to_geojson_polygons(
   else:
     polygons = [point_to_square(p, width) for p in coords]
 
-  if custom_id_idx > -1 and custom_id_field is not None:
+  has_custom_id_field = custom_id_idx > -1 and custom_id_field is not None
+  has_custom_min_date_field = custom_min_date_idx > -1 and custom_min_date_field is not None
+  if has_custom_id_field or has_custom_min_date_field:
     multi_polys = polygons
   else:
     multi_polys = []
@@ -371,6 +385,7 @@ if __name__ == '__main__':
   parser.add_argument('-o', '--output_json', type=str, required=True)
   parser.add_argument('-w', '--width', type=int, default=DEFAULT_WIDTH)
   parser.add_argument('-I', '--custom_id_field', type=str)
+  parser.add_argument('-S', '--custom_min_date_field', type=str)
   parser.add_argument('-q', '--quiet', action='store_true')
   args = parser.parse_args()
 
@@ -391,5 +406,6 @@ if __name__ == '__main__':
       args.output_json,
       args.width,
       args.custom_id_field,
+      args.custom_min_date_field,
       not args.quiet,
     )
