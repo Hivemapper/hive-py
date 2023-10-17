@@ -1,8 +1,3 @@
-"""
-  python -m imagery.query --geojson mygeo.json\
-    --start_day 2023-06-01 --end_day 2023-06-08\
-    --output_dir hm_out --authorization xxx
-"""
 import argparse
 import concurrent.futures
 import geopy.distance
@@ -121,7 +116,7 @@ def query_imagery(features, weeks, custom_ids, authorization, local_dir, verbose
 
   return frames
 
-def query_latest_imagery(features, custom_ids, authorization, local_dir, verbose=False):
+def query_latest_imagery(features, custom_ids, min_days, authorization, local_dir, verbose=False):
   headers = {
     "content-type": "application/json",
     "authorization": f'Basic {authorization}',
@@ -129,11 +124,13 @@ def query_latest_imagery(features, custom_ids, authorization, local_dir, verbose
   frames = []
 
   itr = features if not verbose else tqdm(features)
-  for feature, custom_id in zip(itr, custom_ids):
+  for feature, custom_id, min_day in zip(itr, custom_ids, min_days):
     data = feature.get('geometry', feature)
     assert(area(data) <= MAX_AREA)
 
     url = LATEST_IMAGERY_API_URL
+    if min_day:
+      url += f'?min_week={min_day}'
     if verbose:
       print(url)
 
@@ -196,9 +193,11 @@ def query_latest_frames(geojson_file, output_dir, authorization, verbose = False
     features += fc.get('features', [fc])
 
   custom_ids = []
+  min_dates = []
   for feature in features:
     properties = feature.get('properties', {})
     custom_ids.append(properties.get('id', None))
+    min_dates.append(properties.get('min_date', None))
 
   features = [geo.convert_to_geojson_poly(f) for f in features]
   new_features = []
@@ -214,10 +213,9 @@ def query_latest_frames(geojson_file, output_dir, authorization, verbose = False
 
   if verbose:
     print(f'Querying {len(features)} features for imagery across for latest...')
-  frames = query_latest_imagery(features, custom_ids, authorization, output_dir, verbose)
-  filtered_frames = [frame for frame in frames if frame_within_day_bounds(frame, start_day, end_day)]
+  frames = query_latest_imagery(features, custom_ids, min_dates, authorization, output_dir, verbose)
 
-  return filtered_frames
+  return frames
 
 
 def frame_within_day_bounds(frame, start_day, end_day):
@@ -409,6 +407,7 @@ def query(
   width=DEFAULT_WIDTH,
   merge_metadata=False,
   custom_id_field=None,
+  custom_min_date_field=None,
   num_threads=DEFAULT_THREADS,
   verbose=False,
 ):
@@ -417,7 +416,14 @@ def query(
     geo.transform_shapefile_to_geojson_polygons(file_path, geojson_file, width, verbose)
   elif file_path.endswith('.csv'):
     geojson_file = f'{file_path[0 : len(file_path) - 4]}.geojson_{str(uuid.uuid4())}'
-    geo.transform_csv_to_geojson_polygons(file_path, geojson_file, width, custom_id_field, verbose)        
+    geo.transform_csv_to_geojson_polygons(
+      file_path,
+      geojson_file,
+      width,
+      custom_id_field,
+      custom_min_date_field,
+      verbose,
+    )
   else:
     geojson_file = file_path
 
@@ -461,6 +467,7 @@ if __name__ == '__main__':
   parser.add_argument('-w', '--width', type=int, default=DEFAULT_WIDTH)
   parser.add_argument('-M', '--merge_metadata', action='store_true')
   parser.add_argument('-I', '--custom_id_field', type=str)
+  parser.add_argument('-S', '--custom_min_date_field', type=str)
   parser.add_argument('-a', '--authorization', type=str, required=True)
   parser.add_argument('-c', '--num_threads', type=int, default=DEFAULT_THREADS)
   parser.add_argument('-v', '--verbose', action='store_true')
@@ -481,6 +488,7 @@ if __name__ == '__main__':
     args.width,
     args.merge_metadata,
     args.custom_id_field,
+    args.custom_min_date_field,
     args.num_threads,
     args.verbose,
   )
