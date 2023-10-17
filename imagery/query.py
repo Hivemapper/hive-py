@@ -73,8 +73,7 @@ def download_files(
     meta = {
       img_path:
         { key: frame[key] for key in frame if key != 'url' }
-        for frame in frames
-      for img_path in img_paths
+      for frame, img_path in zip(frames, img_paths)
     }
     with open(local_meta_path, 'w') as f:
       json.dump(meta, f, indent=4)
