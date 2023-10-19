@@ -13,7 +13,7 @@ pip install -r requirements.txt
   - This wrapper supports automatically breaking up large geometries into smaller geometries behind the scenes
 
 # Usage
-### CLI
+### Imagery CLI
 ```
 > python -m imagery.query
 usage: query.py [-h] -i INPUT_FILE [-s START_DAY] [-e END_DAY] [-L] [-x] [-d MAX_DIST] [-l MAX_LAG] [-z MAX_ANGLE] -o OUTPUT_DIR [-g] [-w WIDTH] [-M] [-I CUSTOM_ID_FIELD]
@@ -82,4 +82,28 @@ options:
   -I CUSTOM_ID_FIELD, --custom_id_field CUSTOM_ID_FIELD
   -S CUSTOM_MIN_DATE_FIELD, --custom_min_date_field CUSTOM_MIN_DATE_FIELD
   -q, --quiet
+```
+
+
+### Querying API Usage
+```
+usage: info.py [-h] -a AUTHORIZATION [-b] [-l LIMIT] [-t] [-v]
+
+options:
+  -h, --help            show this help message and exit
+  -a AUTHORIZATION, --authorization AUTHORIZATION
+  -b, --balance
+  -l LIMIT, --limit LIMIT
+  -t, --history
+  -v, --verbose
+```
+
+### Querying Remaining API Credit Balance
+``` 
+python -m account.info -ba <your encoded key string>
+```
+
+### Querying API Transaction history (default limit of 25)
+``` 
+python -m account.info -ta <your encoded key string>
 ```
