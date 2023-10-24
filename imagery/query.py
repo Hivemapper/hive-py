@@ -262,9 +262,12 @@ def stitch(
     by_sequence[sequence].append(frame)
 
   seqs = []
+  skip_stitching = []
   for seq in by_sequence.values():
     if len(seq) > 1:
       seqs.append(sorted(seq, key=lambda f: f.get('idx')))
+    else:
+      skip_stitching.append([seq])
   seqs = sorted(seqs, key=lambda s: s[0].get('timestamp'))
 
   colls = [[seqs.pop(0)]]
@@ -349,10 +352,12 @@ def stitch(
       remaining = []
 
   stitched = [[f for seq in coll for f in seq] for coll in colls]
+  skipped = [[ f for seq in coll for f in seq] for coll in skip_stitching]
   if verbose:
     print(f'Stitched {len(stitched)} paths!')
+    print(f'Skipped {len(skipped)} paths.')
 
-  return stitched
+  return stitched + skipped
 
 def frames_to_linestring(frames, ident):
   return {
