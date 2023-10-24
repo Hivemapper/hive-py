@@ -23,6 +23,17 @@ IMAGERY_API_URL = 'https://hivemapper.com/api/developer/imagery/poly'
 LATEST_IMAGERY_API_URL = 'https://hivemapper.com/api/developer/latest/poly'
 MAX_AREA = 1000 * 1000 # 1km^2
 
+def make_week(d):
+    year = d.year
+    week = d.isocalendar()[1]
+    if week == 0 or (week == 52 and d.month < 12):
+        year -= 1
+        week = 52
+
+    return datetime.strptime(
+        "{}-W{}-1".format(year, week), '%Y-W%W-%w'
+      ).strftime('%Y-%m-%d')
+
 def valid_date(s):
   try:
     return datetime.strptime(s, "%Y-%m-%d")
@@ -174,6 +185,7 @@ def query_frames(geojson_file, start_day, end_day, output_dir, authorization, ve
   while s < end_day - timedelta(days=7):
     s += timedelta(days=7)
     weeks.append(s.strftime("%Y-%m-%d"))
+  weeks = [make_week(datetime.strptime(week, "%Y-%m-%d")) for week in weeks]
   weeks = list(set(weeks))
 
   assert(len(weeks))
