@@ -51,7 +51,7 @@ def katana(geometry, threshold, count=0):
     final_result = []
     for g in result:
         if isinstance(g, MultiPolygon):
-            final_result.extend(g)
+            final_result.extend(g.geoms)
         else:
             final_result.append(g)
     return final_result
