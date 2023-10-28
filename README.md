@@ -16,8 +16,9 @@ pip install -r requirements.txt
 ### Imagery CLI
 ```
 > python -m imagery.query
-usage: query.py [-h] -i INPUT_FILE [-s START_DAY] [-e END_DAY] [-L] [-x] [-d MAX_DIST] [-l MAX_LAG] [-z MAX_ANGLE] -o OUTPUT_DIR [-g] [-w WIDTH] [-M] [-I CUSTOM_ID_FIELD]
-                [-S CUSTOM_MIN_DATE_FIELD] -a AUTHORIZATION [-c NUM_THREADS] [-v]
+usage: query.py [-h] -i INPUT_FILE [-s START_DAY] [-e END_DAY] [-L] [-x] [-d MAX_DIST] [-l MAX_LAG] [-z MAX_ANGLE] -o OUTPUT_DIR
+                [-g] [-w WIDTH] [-M] [-I CUSTOM_ID_FIELD] [-S CUSTOM_MIN_DATE_FIELD] [-P IMAGE_POST_PROCESSING] -a AUTHORIZATION
+                [-c NUM_THREADS] [-v]
 
 options:
   -h, --help            show this help message and exit
@@ -35,6 +36,7 @@ options:
   -M, --merge_metadata
   -I CUSTOM_ID_FIELD, --custom_id_field CUSTOM_ID_FIELD
   -S CUSTOM_MIN_DATE_FIELD, --custom_min_date_field CUSTOM_MIN_DATE_FIELD
+  -P IMAGE_POST_PROCESSING, --image_post_processing IMAGE_POST_PROCESSING
   -a AUTHORIZATION, --authorization AUTHORIZATION
   -c NUM_THREADS, --num_threads NUM_THREADS
   -v, --verbose
@@ -106,4 +108,11 @@ python -m account.info -ba <your encoded key string>
 ### Querying API Transaction history (default limit of 25)
 ``` 
 python -m account.info -ta <your encoded key string>
+```
+
+## Post Processing
+- Install ImageMagick >=7.0.0
+- Use Python >=3.7
+```
+python -m imagery.query -v -M -x -g --input_file "test_feature_col.json" --start_day "2023-07-28" --end_day "2023-07-28" --output_dir "temp" --authorization <your encoded key string> -P clahe-smart-clip
 ```
