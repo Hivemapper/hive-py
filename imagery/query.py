@@ -13,6 +13,7 @@ from itertools import repeat
 from geographiclib.geodesic import Geodesic
 from tqdm import tqdm
 from util import geo
+from imagery.processing import clahe_smart_clip
 
 DEFAULT_STITCH_MAX_DISTANCE = 20
 DEFAULT_STITCH_MAX_LAG = 300
@@ -22,6 +23,7 @@ DEFAULT_WIDTH = 25
 IMAGERY_API_URL = 'https://hivemapper.com/api/developer/imagery/poly'
 LATEST_IMAGERY_API_URL = 'https://hivemapper.com/api/developer/latest/poly'
 MAX_AREA = 1000 * 1000 # 1km^2
+VALID_POST_PROCESSING_OPTS = ['clahe-smart-clip']
 
 def make_week(d):
     year = d.year
@@ -97,6 +99,8 @@ def download_files(
 
   with concurrent.futures.ThreadPoolExecutor(max_workers=num_threads) as executor:
     executor.map(download_file, urls, local_img_paths, repeat(verbose))
+
+  return local_img_paths
 
 def query_imagery(features, weeks, custom_ids, authorization, local_dir, verbose=False):
   headers = {
@@ -449,6 +453,8 @@ def query(
     frames = query_frames(geojson_file, start_day, end_day, output_dir, authorization, verbose)
   print(f'Found {len(frames)} images!')
 
+  img_paths = []
+
   if frames:
     if verbose:
       print(f'Downloading with {num_threads} threads...')
@@ -458,15 +464,17 @@ def query(
       for i, frame_set in enumerate(stitched):
         folder = f'{str(uuid.uuid4())}-{str(i)}'
         local_dir = os.path.join(output_dir, folder)
-        download_files(frame_set, local_dir, False, merge_metadata, num_threads, verbose)
+        img_paths += download_files(frame_set, local_dir, False, merge_metadata, num_threads, verbose)
       if export_geojson:
         write_geojson(stitched, output_dir, False, verbose)
     else:
-      download_files(frames, output_dir, True, merge_metadata, num_threads, verbose)
+      img_paths += download_files(frames, output_dir, True, merge_metadata, num_threads, verbose)
       if export_geojson:
         write_geojson([frames], output_dir, True, verbose)
     
     print(f'{len(frames)} frames saved to {output_dir}!')
+
+  return img_paths
 
 if __name__ == '__main__':
   parser = argparse.ArgumentParser()
@@ -484,12 +492,16 @@ if __name__ == '__main__':
   parser.add_argument('-M', '--merge_metadata', action='store_true')
   parser.add_argument('-I', '--custom_id_field', type=str)
   parser.add_argument('-S', '--custom_min_date_field', type=str)
+  parser.add_argument('-P', '--image_post_processing', type=str)
   parser.add_argument('-a', '--authorization', type=str, required=True)
   parser.add_argument('-c', '--num_threads', type=int, default=DEFAULT_THREADS)
   parser.add_argument('-v', '--verbose', action='store_true')
   args = parser.parse_args()
 
-  query(
+  if args.image_post_processing:
+    assert(args.image_post_processing in VALID_POST_PROCESSING_OPTS)
+
+  img_paths = query(
     args.input_file,
     args.start_day,
     args.end_day,
@@ -508,3 +520,14 @@ if __name__ == '__main__':
     args.num_threads,
     args.verbose,
   )
+
+  if args.image_post_processing:
+    if args.verbose:
+      print(f'post processing {len(img_paths)} with {args.image_post_processing}...')
+
+    def post_process(img_path, image_post_processing, verbose):
+      if image_post_processing == 'clahe-smart-clip':
+        clahe_smart_clip(img_path, img_path, verbose)
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=args.num_threads) as executor:
+      executor.map(post_process, img_paths, repeat(args.image_post_processing), repeat(args.verbose))
