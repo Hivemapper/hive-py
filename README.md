@@ -93,6 +93,11 @@ options:
 python -m imagery.query -v -M -g --input_file "test_feature_col.json" --start_day "2023-07-28" --end_day "2023-07-28" --output_dir "temp" --authorization <your encoded key string> -K last_out/frames.geojson
 ```
 
+### Skipping multiple output frames areas
+```
+> python -m util.geo -h
+python -m imagery.query -v -M -g --input_file "test_feature_col.json" --start_day "2023-07-28" --end_day "2023-07-28" --output_dir "temp" --authorization <your encoded key string> -K last_out/frames.geojson,another_out/frames.geojson
+```
 
 ### Querying API Usage
 ```
