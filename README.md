@@ -17,8 +17,8 @@ pip install -r requirements.txt
 ```
 > python -m imagery.query
 usage: query.py [-h] -i INPUT_FILE [-s START_DAY] [-e END_DAY] [-L] [-x] [-d MAX_DIST] [-l MAX_LAG] [-z MAX_ANGLE] -o OUTPUT_DIR
-                [-g] [-w WIDTH] [-M] [-I CUSTOM_ID_FIELD] [-S CUSTOM_MIN_DATE_FIELD] [-P IMAGE_POST_PROCESSING] -a AUTHORIZATION
-                [-c NUM_THREADS] [-v]
+                [-g] [-w WIDTH] [-M] [-I CUSTOM_ID_FIELD] [-S CUSTOM_MIN_DATE_FIELD] [-K SKIP_GEO_FILE] [-P IMAGE_POST_PROCESSING]
+                -a AUTHORIZATION [-c NUM_THREADS] [-v]
 
 options:
   -h, --help            show this help message and exit
@@ -36,6 +36,7 @@ options:
   -M, --merge_metadata
   -I CUSTOM_ID_FIELD, --custom_id_field CUSTOM_ID_FIELD
   -S CUSTOM_MIN_DATE_FIELD, --custom_min_date_field CUSTOM_MIN_DATE_FIELD
+  -K SKIP_GEO_FILE, --skip_geo_file SKIP_GEO_FILE
   -P IMAGE_POST_PROCESSING, --image_post_processing IMAGE_POST_PROCESSING
   -a AUTHORIZATION, --authorization AUTHORIZATION
   -c NUM_THREADS, --num_threads NUM_THREADS
@@ -84,6 +85,12 @@ options:
   -I CUSTOM_ID_FIELD, --custom_id_field CUSTOM_ID_FIELD
   -S CUSTOM_MIN_DATE_FIELD, --custom_min_date_field CUSTOM_MIN_DATE_FIELD
   -q, --quiet
+```
+
+### Skipping last output frames areas
+```
+> python -m util.geo -h
+python -m imagery.query -v -M -g --input_file "test_feature_col.json" --start_day "2023-07-28" --end_day "2023-07-28" --output_dir "temp" --authorization <your encoded key string> -K last_out/frames.geojson
 ```
 
 

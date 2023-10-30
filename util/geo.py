@@ -377,6 +377,52 @@ def transform_csv_to_geojson_polygons(
 
   return polygons
 
+def subtract_geojson(
+  minuend_in,
+  subtrahend_in,
+  delta_out, width=DEFAULT_WIDTH,
+  verbose=False,
+):
+  minuend_features = []
+  subtrahend_features = []
+
+  with open(minuend_in, 'r') as f:
+    fc = json.load(f)
+    minuend_features += fc.get('features', [fc])
+
+  with open(subtrahend_in, 'r') as f:
+    fc = json.load(f)
+    subtrahend_features += fc.get('features', [fc])
+
+  minuend_features = [convert_to_geojson_poly(f) for f in minuend_features]
+  subtrahend_features = [convert_to_geojson_poly(f) for f in subtrahend_features]
+
+  minuend_features = [shapely.from_geojson(json.dumps(f)) for f in minuend_features]
+  subtrahend_features = [shapely.from_geojson(json.dumps(f)) for f in subtrahend_features]
+  delta = shapely.difference(
+    shapely.unary_union(minuend_features),
+    shapely.unary_union(subtrahend_features))
+
+  if delta.type == 'MultiPolygon':
+    delta = delta.geoms
+  delta = [json.loads(shapely.to_geojson(g)) for g in delta]
+  delta = [{
+    "type": "Feature",
+    "geometry": g,
+    "properties": {},
+  } for g in delta]
+
+  if verbose:
+    print(f'writing delta geojson to {delta_out}...')
+
+  with open(delta_out, 'w') as f:
+    json.dump({
+      'type': 'FeatureCollection',
+      'features': delta,
+      }, f)
+
+  return delta
+
 if __name__ == '__main__':
   parser = argparse.ArgumentParser()
   parser.add_argument('-s', '--shapefile', type=str, required=False)
