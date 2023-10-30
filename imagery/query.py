@@ -450,7 +450,7 @@ def query(
 
   if skip_geo_file:
     geojson_file2 = geojson_file.replace('.json', '_delta.json')
-    geo.subtract_geojson(geojson_file, skip_geo_file, geojson_file2, verbose)
+    geo.subtract_geojson(geojson_file, skip_geo_file, geojson_file2, width, verbose)
     geojson_file = geojson_file2
 
   if latest:

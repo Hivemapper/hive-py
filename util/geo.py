@@ -377,7 +377,12 @@ def transform_csv_to_geojson_polygons(
 
   return polygons
 
-def subtract_geojson(minuend_in, subtrahend_in, delta_out, verbose=False):
+def subtract_geojson(
+  minuend_in,
+  subtrahend_in,
+  delta_out, width=DEFAULT_WIDTH,
+  verbose=False,
+):
   minuend_features = []
   subtrahend_features = []
 
