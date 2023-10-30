@@ -449,9 +449,11 @@ def query(
     geojson_file = file_path
 
   if skip_geo_file:
-    geojson_file2 = geojson_file.replace('.json', '_delta.json')
-    geo.subtract_geojson(geojson_file, skip_geo_file, geojson_file2, width, verbose)
-    geojson_file = geojson_file2
+    skips = skip_geo_file.split(',')
+    for skip_f in skips:
+      geojson_file2 = geojson_file.replace('.json', '_delta.json')
+      geo.subtract_geojson(geojson_file, skip_f, geojson_file2, width, verbose)
+      geojson_file = geojson_file2
 
   if latest:
     frames = query_latest_frames(geojson_file, output_dir, authorization, verbose)
