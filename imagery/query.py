@@ -428,6 +428,7 @@ def query(
   merge_metadata=False,
   custom_id_field=None,
   custom_min_date_field=None,
+  skip_geo_file=None,
   num_threads=DEFAULT_THREADS,
   verbose=False,
 ):
@@ -446,6 +447,11 @@ def query(
     )
   else:
     geojson_file = file_path
+
+  if skip_geo_file:
+    geojson_file2 = geojson_file.replace('.json', '_delta.json')
+    geo.subtract_geojson(geojson_file, skip_geo_file, geojson_file2, verbose)
+    geojson_file = geojson_file2
 
   if latest:
     frames = query_latest_frames(geojson_file, output_dir, authorization, verbose)
@@ -492,6 +498,7 @@ if __name__ == '__main__':
   parser.add_argument('-M', '--merge_metadata', action='store_true')
   parser.add_argument('-I', '--custom_id_field', type=str)
   parser.add_argument('-S', '--custom_min_date_field', type=str)
+  parser.add_argument('-K', '--skip_geo_file', type=str)
   parser.add_argument('-P', '--image_post_processing', type=str)
   parser.add_argument('-a', '--authorization', type=str, required=True)
   parser.add_argument('-c', '--num_threads', type=int, default=DEFAULT_THREADS)
@@ -517,6 +524,7 @@ if __name__ == '__main__':
     args.merge_metadata,
     args.custom_id_field,
     args.custom_min_date_field,
+    args.skip_geo_file,
     args.num_threads,
     args.verbose,
   )
