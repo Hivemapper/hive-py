@@ -1,6 +1,7 @@
 import argparse
 import concurrent.futures
 import geopy.distance
+import hashlib
 import json
 import os
 import requests
@@ -16,6 +17,7 @@ from tqdm import tqdm
 from util import geo
 from imagery.processing import clahe_smart_clip
 
+CACHE_DIR = '.hivepy_cache'
 DEFAULT_BACKOFF = 1.0
 DEFAULT_RETRIES = 10
 DEFAULT_STITCH_MAX_DISTANCE = 20
@@ -40,6 +42,40 @@ retries = Retry(
 request_session.mount('http://', HTTPAdapter(max_retries=retries))
 request_session.mount('https://', HTTPAdapter(max_retries=retries))
 
+def setup_cache(verbose = True):
+  if verbose:
+    print(f'Making cache dir: {CACHE_DIR}')
+  os.makedirs(CACHE_DIR, exist_ok=True)  
+
+def clear_cache(verbose = True):
+  if verbose:
+    print(f'Deleting cache dir: {CACHE_DIR}')
+  shutil.rmtree(CACHE_DIR)
+
+def post_cached(url, data, headers, verbose=True, use_cache=True):
+  loc = None
+  if use_cache:
+    str_data = json.dumps({ 'url': url, 'data': data }).encode('utf-8')
+    h = hashlib.md5(str_data).hexdigest()
+    loc = os.path.join(CACHE_DIR, h)
+
+    if os.path.isfile(loc):
+      if verbose:
+        print('Using cached data...')
+      with open(loc, 'r') as f:
+        return json.load(f)
+
+  with request_session.post(url, data=json.dumps(data), headers=headers) as r:
+    r.raise_for_status()
+    resp = r.json()
+    frames = resp.get('frames', [])
+
+    if loc is not None:
+      with open(loc, 'w') as f:
+        json.dump(frames, f)
+
+    return frames
+
 def make_week(d):
     year = d.year
     week = d.isocalendar()[1]
@@ -58,7 +94,12 @@ def valid_date(s):
     msg = "not a valid date: {0!r}".format(s)
     raise argparse.ArgumentTypeError(msg)
 
-def download_file(url, local_path, verbose=False):
+def download_file(url, local_path, verbose=True, overwrite=False):
+  if not overwrite and os.path.isfile(local_path):
+    if verbose:
+      print(f'{local_path} exists, skipping download...')
+    return
+
   os.makedirs(os.path.dirname(local_path), exist_ok=True)
   clean = url.split('?')[0].split('.com/')[1]
   if verbose:
@@ -76,6 +117,7 @@ def download_files(
   merge_metadata=False,
   num_threads=DEFAULT_THREADS,
   verbose=False,
+  use_cache=True,
 ):
   urls = [frame.get('url') for frame in frames]
   if preserve_dirs:
@@ -113,11 +155,11 @@ def download_files(
         json.dump(meta, f, indent=4)
 
   with concurrent.futures.ThreadPoolExecutor(max_workers=num_threads) as executor:
-    executor.map(download_file, urls, local_img_paths, repeat(verbose))
+    executor.map(download_file, urls, local_img_paths, repeat(verbose), repeat(not use_cache))
 
   return local_img_paths
 
-def query_imagery(features, weeks, custom_ids, authorization, local_dir, verbose=False):
+def query_imagery(features, weeks, custom_ids, authorization, local_dir, verbose=False, use_cache=True):
   headers = {
     "content-type": "application/json",
     "authorization": f'Basic {authorization}',
@@ -134,18 +176,15 @@ def query_imagery(features, weeks, custom_ids, authorization, local_dir, verbose
       if verbose:
         print(url)
 
-      with request_session.post(url, data=json.dumps(data), headers=headers) as r:
-        r.raise_for_status()
-        resp = r.json()
-        results = resp.get('frames', [])
-        if custom_id is not None:
-          for result in results:
-            result['id'] = custom_id
-        frames += results
+      results = post_cached(url, data, headers, verbose, use_cache)
+      if custom_id is not None:
+        for result in results:
+          result['id'] = custom_id
+      frames += results
 
   return frames
 
-def query_latest_imagery(features, custom_ids, min_days, authorization, local_dir, verbose=False):
+def query_latest_imagery(features, custom_ids, min_days, authorization, local_dir, verbose=False, use_cache=True):
   headers = {
     "content-type": "application/json",
     "authorization": f'Basic {authorization}',
@@ -163,18 +202,15 @@ def query_latest_imagery(features, custom_ids, min_days, authorization, local_di
     if verbose:
       print(url)
 
-    with request_session.post(url, data=json.dumps(data), headers=headers) as r:
-      r.raise_for_status()
-      resp = r.json()
-      results = resp.get('frames', [])
-      if custom_id is not None:
-        for result in results:
-          result['id'] = custom_id
-      frames += results
+    results = post_cached(url, data, headers, verbose, use_cache)
+    if custom_id is not None:
+      for result in results:
+        result['id'] = custom_id
+    frames += results
 
   return frames
 
-def query_frames(geojson_file, start_day, end_day, output_dir, authorization, verbose = False):
+def query_frames(geojson_file, start_day, end_day, output_dir, authorization, verbose = False, use_cache = True):
   assert(start_day <= end_day)
 
   features = []
@@ -211,12 +247,12 @@ def query_frames(geojson_file, start_day, end_day, output_dir, authorization, ve
 
   if verbose:
     print(f'Querying {len(features)} features for imagery across {len(weeks)} weeks...')
-  frames = query_imagery(features, weeks, custom_ids, authorization, output_dir, verbose)
+  frames = query_imagery(features, weeks, custom_ids, authorization, output_dir, verbose, use_cache)
   filtered_frames = [frame for frame in frames if frame_within_day_bounds(frame, start_day, end_day)]
 
   return filtered_frames
 
-def query_latest_frames(geojson_file, output_dir, authorization, verbose = False):
+def query_latest_frames(geojson_file, output_dir, authorization, verbose = False, use_cache = True):
   features = []
   with open(geojson_file, 'r') as f:
     fc = json.load(f)
@@ -243,7 +279,7 @@ def query_latest_frames(geojson_file, output_dir, authorization, verbose = False
 
   if verbose:
     print(f'Querying {len(features)} features for imagery across for latest...')
-  frames = query_latest_imagery(features, custom_ids, min_dates, authorization, output_dir, verbose)
+  frames = query_latest_imagery(features, custom_ids, min_dates, authorization, output_dir, verbose, use_cache)
 
   return frames
 
@@ -446,6 +482,7 @@ def query(
   skip_geo_file=None,
   num_threads=DEFAULT_THREADS,
   verbose=False,
+  use_cache=True,
 ):
   if file_path.endswith('.shp'):
     geojson_file = f'{file_path[0 : len(file_path) - 4]}.geojson_{str(uuid.uuid4())}'
@@ -471,9 +508,9 @@ def query(
       geojson_file = geojson_file2
 
   if latest:
-    frames = query_latest_frames(geojson_file, output_dir, authorization, verbose)
+    frames = query_latest_frames(geojson_file, output_dir, authorization, verbose, use_cache)
   else:
-    frames = query_frames(geojson_file, start_day, end_day, output_dir, authorization, verbose)
+    frames = query_frames(geojson_file, start_day, end_day, output_dir, authorization, verbose, use_cache)
   print(f'Found {len(frames)} images!')
 
   img_paths = []
@@ -487,11 +524,11 @@ def query(
       for i, frame_set in enumerate(stitched):
         folder = f'{str(uuid.uuid4())}-{str(i)}'
         local_dir = os.path.join(output_dir, folder)
-        img_paths += download_files(frame_set, local_dir, False, merge_metadata, num_threads, verbose)
+        img_paths += download_files(frame_set, local_dir, False, merge_metadata, num_threads, verbose, use_cache)
       if export_geojson:
         write_geojson(stitched, output_dir, False, verbose)
     else:
-      img_paths += download_files(frames, output_dir, True, merge_metadata, num_threads, verbose)
+      img_paths += download_files(frames, output_dir, True, merge_metadata, num_threads, verbose, use_cache)
       if export_geojson:
         write_geojson([frames], output_dir, True, verbose)
     
@@ -520,10 +557,15 @@ if __name__ == '__main__':
   parser.add_argument('-a', '--authorization', type=str, required=True)
   parser.add_argument('-c', '--num_threads', type=int, default=DEFAULT_THREADS)
   parser.add_argument('-v', '--verbose', action='store_true')
+  parser.add_argument('-C', '--cache', action='store_true')
   args = parser.parse_args()
+
+  if args.cache:
+    setup_cache(args.verbose)
 
   if args.image_post_processing:
     assert(args.image_post_processing in VALID_POST_PROCESSING_OPTS)
+    assert(not args.cache)
 
   img_paths = query(
     args.input_file,
@@ -544,6 +586,7 @@ if __name__ == '__main__':
     args.skip_geo_file,
     args.num_threads,
     args.verbose,
+    args.cache,
   )
 
   if args.image_post_processing:
@@ -556,3 +599,6 @@ if __name__ == '__main__':
 
     with concurrent.futures.ThreadPoolExecutor(max_workers=args.num_threads) as executor:
       executor.map(post_process, img_paths, repeat(args.image_post_processing), repeat(args.verbose))
+
+  if args.cache:
+    clear_cache(args.verbose)

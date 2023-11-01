@@ -18,7 +18,7 @@ pip install -r requirements.txt
 > python -m imagery.query
 usage: query.py [-h] -i INPUT_FILE [-s START_DAY] [-e END_DAY] [-L] [-x] [-d MAX_DIST] [-l MAX_LAG] [-z MAX_ANGLE] -o OUTPUT_DIR
                 [-g] [-w WIDTH] [-M] [-I CUSTOM_ID_FIELD] [-S CUSTOM_MIN_DATE_FIELD] [-K SKIP_GEO_FILE] [-P IMAGE_POST_PROCESSING]
-                -a AUTHORIZATION [-c NUM_THREADS] [-v]
+                -a AUTHORIZATION [-c NUM_THREADS] [-v] [-C]
 
 options:
   -h, --help            show this help message and exit
@@ -41,6 +41,7 @@ options:
   -a AUTHORIZATION, --authorization AUTHORIZATION
   -c NUM_THREADS, --num_threads NUM_THREADS
   -v, --verbose
+  -C, --cache
 ```
 
 ### Python API
@@ -59,6 +60,11 @@ download_files(frames, output_dir)
 ### Query imagery for a GeoJSON Polygon Feature
 ```
 python -m imagery.query -v -M --input_file "test_feature.json" --start_day "2023-07-28" --end_day "2023-07-28" --output_dir "temp" --authorization <your encoded key string>
+```
+
+### Query imagery for a GeoJSON Polygon Feature, use cache for resumable
+```
+python -m imagery.query -v -M -C --input_file "test_feature.json" --start_day "2023-07-28" --end_day "2023-07-28" --output_dir "temp" --authorization <your encoded key string>
 ```
 
 ### Query imagery for a GeoJSON Polygon FeatureCollection; stitch together; save a GeoJSON of LineStrings
