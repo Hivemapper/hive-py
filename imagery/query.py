@@ -11,10 +11,13 @@ from area import area
 from datetime import datetime, timedelta
 from itertools import repeat
 from geographiclib.geodesic import Geodesic
+from requests.adapters import HTTPAdapter, Retry
 from tqdm import tqdm
 from util import geo
 from imagery.processing import clahe_smart_clip
 
+DEFAULT_BACKOFF = 1.0
+DEFAULT_RETRIES = 10
 DEFAULT_STITCH_MAX_DISTANCE = 20
 DEFAULT_STITCH_MAX_LAG = 300
 DEFAULT_STITCH_MAX_ANGLE = 30
@@ -23,7 +26,19 @@ DEFAULT_WIDTH = 25
 IMAGERY_API_URL = 'https://hivemapper.com/api/developer/imagery/poly'
 LATEST_IMAGERY_API_URL = 'https://hivemapper.com/api/developer/latest/poly'
 MAX_AREA = 1000 * 1000 # 1km^2
+STATUS_FORCELIST = [429, 500, 502, 503, 504]
 VALID_POST_PROCESSING_OPTS = ['clahe-smart-clip']
+
+request_session = requests.Session()
+retries = Retry(
+  total=DEFAULT_RETRIES,
+  backoff_factor=DEFAULT_BACKOFF,
+  status_forcelist=STATUS_FORCELIST,
+  raise_on_status=True,
+  allowed_methods=['GET', 'POST'],
+)
+request_session.mount('http://', HTTPAdapter(max_retries=retries))
+request_session.mount('https://', HTTPAdapter(max_retries=retries))
 
 def make_week(d):
     year = d.year
@@ -49,7 +64,7 @@ def download_file(url, local_path, verbose=False):
   if verbose:
     print("GET {} => {}".format(clean, local_path))
 
-  with requests.get(url, stream=True) as r:
+  with request_session.get(url, stream=True) as r:
     r.raise_for_status()
     with open(local_path, 'wb') as f:
       shutil.copyfileobj(r.raw, f)
@@ -119,7 +134,7 @@ def query_imagery(features, weeks, custom_ids, authorization, local_dir, verbose
       if verbose:
         print(url)
 
-      with requests.post(url, data=json.dumps(data), headers=headers) as r:
+      with request_session.post(url, data=json.dumps(data), headers=headers) as r:
         r.raise_for_status()
         resp = r.json()
         results = resp.get('frames', [])
@@ -148,7 +163,7 @@ def query_latest_imagery(features, custom_ids, min_days, authorization, local_di
     if verbose:
       print(url)
 
-    with requests.post(url, data=json.dumps(data), headers=headers) as r:
+    with request_session.post(url, data=json.dumps(data), headers=headers) as r:
       r.raise_for_status()
       resp = r.json()
       results = resp.get('frames', [])
