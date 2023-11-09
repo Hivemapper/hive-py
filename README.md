@@ -134,3 +134,21 @@ python -m account.info -ta <your encoded key string>
 ```
 python -m imagery.query -v -M -x -g --input_file "test_feature_col.json" --start_day "2023-07-28" --end_day "2023-07-28" --output_dir "temp" --authorization <your encoded key string> -P clahe-smart-clip
 ```
+
+### `clahe-smart-clip` (Contrast Limited Adaptive Histogram Equalization with Smart Clipping)
+- https://en.wikipedia.org/wiki/Adaptive_histogram_equalization#Contrast_Limited_AHE
+- https://imagemagick.org/script/clahe.php
+- https://www.mdpi.com/1424-8220/22/22/8967
+
+It's highly recommended to use the module directly in order to preserve the original imagery, as well as to tune values for your own purposes.
+
+By default, settings are naively configured to sacrifice aesthetics to improve unsupervised feature detection. Some general deep learning inference use cases and human in the loop use cases may also see benefits from these default settings.
+
+#### Mitigating Direct Sunlight
+![directsun](https://github.com/Hivemapper/hive-py/assets/3093002/46b84ee7-eb5f-4527-92d1-6d48c36b3436)
+![clahe1](https://github.com/Hivemapper/hive-py/assets/3093002/f6554add-dd1f-44a2-a0b8-2d5b8fc0d82e)
+
+#### Mitigating Heavy Shadows
+![dark1](https://github.com/Hivemapper/hive-py/assets/3093002/8a2cd6cf-910a-4f2b-b680-3c1f003d33f7)
+![clahe2](https://github.com/Hivemapper/hive-py/assets/3093002/8e46c7f4-8ff1-4f62-a2bb-d16fdd1a06c0)
+
