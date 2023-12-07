@@ -480,8 +480,8 @@ def subtract_geojson(
   subtrahend_features = [shapely.unary_union(shapely.from_geojson(json.dumps(f))) for f in subtrahend_features]
 
   delta = shapely.difference(
-      shapely.unary_union(minuend_features),
-      shapely.unary_union(subtrahend_features))
+    shapely.unary_union(minuend_features),
+    shapely.unary_union(subtrahend_features))
 
   if delta.type == 'MultiPolygon':
     delta = delta.geoms
