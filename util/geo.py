@@ -8,9 +8,11 @@ import shapefile
 import shapely
 
 from area import area
+from collections import Counter
 from geographiclib.geodesic import Geodesic
 from pyproj import Transformer
-from shapely.geometry import box, Polygon, MultiPolygon, GeometryCollection
+from shapely.geometry import box, Polygon, LineString, MultiPolygon, GeometryCollection, Point, MultiPoint
+from shapely.ops import split, snap, unary_union
 from tqdm import tqdm
 
 AREA_LIMIT = 1000000
@@ -18,6 +20,60 @@ MAX_MULTIPOLYGON_CARDINALITY = 8
 DEFAULT_WIDTH = 25
 MERCATOR_TO_WGS = Transformer.from_crs("EPSG:3857", "EPSG:4326", always_xy=True)
 WGS_TO_MERCATOR = Transformer.from_crs("EPSG:4326", "EPSG:3857", always_xy=True)
+
+# from https://github.com/shapely/shapely/issues/1068#issuecomment-770296614
+def complex_split(geom: LineString, splitter):
+    """Split a complex linestring by another geometry without splitting at
+    self-intersection points.
+
+    Parameters
+    ----------
+    geom : LineString
+        An optionally complex LineString.
+    splitter : Geometry
+        A geometry to split by.
+
+    Warnings
+    --------
+    A known vulnerability is where the splitter intersects the complex
+    linestring at one of the self-intersecting points of the linestring.
+    In this case, only one the first path through the self-intersection
+    will be split.
+
+    Examples
+    --------
+    >>> complex_line_string = LineString([(0, 0), (1, 1), (1, 0), (0, 1)])
+    >>> splitter = LineString([(0, 0.5), (0.5, 1)])
+    >>> complex_split(complex_line_string, splitter).wkt
+    'GEOMETRYCOLLECTION (LINESTRING (0 0, 1 1, 1 0, 0.25 0.75), LINESTRING (0.25 0.75, 0 1))'
+
+    Return
+    ------
+    GeometryCollection
+        A collection of the geometries resulting from the split.
+    """
+    if geom.is_simple:
+        return split(geom, splitter)
+
+    if isinstance(splitter, Polygon):
+        splitter = splitter.exterior
+
+    # Ensure that intersection exists and is zero dimensional.
+    relate_str = geom.relate(splitter)
+    if relate_str[0] == '1':
+        raise ValueError('Cannot split LineString by a geometry which intersects a '
+                         'continuous portion of the LineString.')
+    if not (relate_str[0] == '0' or relate_str[1] == '0'):
+        return GeometryCollection((geom,))
+
+    intersection_points = geom.intersection(splitter)
+    # This only inserts the point at the first pass of a self-intersection if
+    # the point falls on a self-intersection.
+    snapped_geom = snap(geom, intersection_points, tolerance=1.0e-12)  # may want to make tolerance a parameter.
+    # A solution to the warning in the docstring is to roll your own split method here.
+    # The current one in shapely returns early when a point is found to be part of a segment.
+    # But if the point was at a self-intersection it could be part of multiple segments.
+    return split(snapped_geom, intersection_points)
 
 # https://snorfalorpagus.net/blog/2016/03/13/splitting-large-polygons-for-faster-intersections/
 def katana(geometry, threshold, count=0):
@@ -246,11 +302,34 @@ def chunk_by_area(feature, limit = AREA_LIMIT):
     "geometry": geometry,
   } for geometry in geoms]
 
+# from https://gis.stackexchange.com/questions/435879/python-shapely-split-a-complex-line-at-self-intersections
+def find_self_intersection(line):
+    intersection = None
+    if not line.is_simple:
+        intersection = unary_union(line)
+        seg_coordinates = []
+        for seg in intersection.geoms:
+            seg_coordinates.extend(list(seg.coords))
+        intersection = [Point(p) for p, c in Counter(seg_coordinates).items() if c > 1]
+        intersection = MultiPoint(intersection)
+    return intersection
+
 def convert_to_geojson_poly(feature, width = DEFAULT_WIDTH):
   geom = feature.get('geometry', feature)
   t = geom['type']
 
   if t == 'LineString':
+    s = shapely.from_geojson(json.dumps(geom))
+    if not s.is_simple:
+      x = find_self_intersection(s)
+      d = s.difference(x)
+      sp = complex_split(d, x)
+      sp = shapely.segmentize(sp, max_segment_length=float(DEFAULT_WIDTH) / 20000000.0)
+      ls = [json.loads(shapely.to_geojson(g)) for g in sp.geoms]
+      polys = [geojson_linestring_to_poly(l, width) for l in ls]
+      spolys = [shapely.from_geojson(json.dumps(p)) for p in polys]
+      mpoly = unary_union(spolys)
+      return json.loads(shapely.to_geojson(mpoly))
     return geojson_linestring_to_poly(geom, width)
   elif t == 'Point':
     return geojson_point_to_poly(geom, width)
@@ -397,11 +476,12 @@ def subtract_geojson(
   minuend_features = [convert_to_geojson_poly(f) for f in minuend_features]
   subtrahend_features = [convert_to_geojson_poly(f) for f in subtrahend_features]
 
-  minuend_features = [shapely.from_geojson(json.dumps(f)) for f in minuend_features]
-  subtrahend_features = [shapely.from_geojson(json.dumps(f)) for f in subtrahend_features]
+  minuend_features = [shapely.unary_union(shapely.from_geojson(json.dumps(f))) for f in minuend_features]
+  subtrahend_features = [shapely.unary_union(shapely.from_geojson(json.dumps(f))) for f in subtrahend_features]
+
   delta = shapely.difference(
-    shapely.unary_union(minuend_features),
-    shapely.unary_union(subtrahend_features))
+      shapely.unary_union(minuend_features),
+      shapely.unary_union(subtrahend_features))
 
   if delta.type == 'MultiPolygon':
     delta = delta.geoms
