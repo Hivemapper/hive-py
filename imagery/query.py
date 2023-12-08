@@ -42,6 +42,9 @@ retries = Retry(
 request_session.mount('http://', HTTPAdapter(max_retries=retries))
 request_session.mount('https://', HTTPAdapter(max_retries=retries))
 
+# to be lazy loaded
+CAMERA_INFO = {}
+
 def setup_cache(verbose = True):
   if verbose:
     print(f'Making cache dir: {CACHE_DIR}')
@@ -94,6 +97,17 @@ def valid_date(s):
     msg = "not a valid date: {0!r}".format(s)
     raise argparse.ArgumentTypeError(msg)
 
+def fetch_camera_info(device):
+  if len(CAMERA_INFO) == 0:
+    url = 'https://hivemapper.com/api/developer/devices'
+    with request_session.get(url, stream=True) as r:
+      r.raise_for_status()
+      resp = r.json()
+      CAMERA_INFO['hdc'] = resp['hdc']
+      CAMERA_INFO['hdc-s'] = resp['hdc-s']
+
+  return CAMERA_INFO.get(device)
+
 def download_file(url, local_path, verbose=True, overwrite=False):
   if not overwrite and os.path.isfile(local_path):
     if verbose:
@@ -115,6 +129,7 @@ def download_files(
   local_dir,
   preserve_dirs=True,
   merge_metadata=False,
+  camera_intrinsics=False,
   num_threads=DEFAULT_THREADS,
   verbose=False,
   use_cache=True,
@@ -136,6 +151,17 @@ def download_files(
 
   if len(frames) == 0:
     return
+
+  if camera_intrinsics:
+    for frame in frames:
+      device = frame.get('device', 'hdc')
+      width = float(frame.get('width', 2028))
+      camera_info = fetch_camera_info(device)
+      frame['camera'] = {
+        'focal': camera_info.get('focal', 0.0) * width,
+        'k1': camera_info.get('k1', 0.0),
+        'k2': camera_info.get('k2', 0.0),
+      }
 
   if merge_metadata:
     local_meta_path = os.path.join(local_dir, 'meta.json')
@@ -477,6 +503,7 @@ def query(
   max_angle=DEFAULT_STITCH_MAX_ANGLE,
   width=DEFAULT_WIDTH,
   merge_metadata=False,
+  camera_intrinsics=False,
   custom_id_field=None,
   custom_min_date_field=None,
   skip_geo_file=None,
@@ -524,11 +551,11 @@ def query(
       for i, frame_set in enumerate(stitched):
         folder = f'{str(uuid.uuid4())}-{str(i)}'
         local_dir = os.path.join(output_dir, folder)
-        img_paths += download_files(frame_set, local_dir, False, merge_metadata, num_threads, verbose, use_cache)
+        img_paths += download_files(frame_set, local_dir, False, merge_metadata, camera_intrinsics, num_threads, verbose, use_cache)
       if export_geojson:
         write_geojson(stitched, output_dir, False, verbose)
     else:
-      img_paths += download_files(frames, output_dir, True, merge_metadata, num_threads, verbose, use_cache)
+      img_paths += download_files(frames, output_dir, True, merge_metadata, camera_intrinsics, num_threads, verbose, use_cache)
       if export_geojson:
         write_geojson([frames], output_dir, True, verbose)
     
@@ -552,6 +579,7 @@ if __name__ == '__main__':
   parser.add_argument('-M', '--merge_metadata', action='store_true')
   parser.add_argument('-I', '--custom_id_field', type=str)
   parser.add_argument('-S', '--custom_min_date_field', type=str)
+  parser.add_argument('-k', '--camera_intrinsics', action='store_true')
   parser.add_argument('-K', '--skip_geo_file', type=str)
   parser.add_argument('-P', '--image_post_processing', type=str)
   parser.add_argument('-a', '--authorization', type=str, required=True)
@@ -581,6 +609,7 @@ if __name__ == '__main__':
     args.max_angle,
     args.width,
     args.merge_metadata,
+    args.camera_intrinsics,
     args.custom_id_field,
     args.custom_min_date_field,
     args.skip_geo_file,
