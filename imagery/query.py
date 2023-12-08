@@ -10,6 +10,7 @@ import uuid
 
 from area import area
 from datetime import datetime, timedelta
+from exiftool import ExifToolHelper
 from itertools import repeat
 from geographiclib.geodesic import Geodesic
 from requests.adapters import HTTPAdapter, Retry
@@ -108,7 +109,38 @@ def fetch_camera_info(device):
 
   return CAMERA_INFO.get(device)
 
-def download_file(url, local_path, verbose=True, overwrite=False):
+def update_exif(local_path, metadata, verbose=False):
+  tags = {}
+
+  if 'camera' in metadata:
+    cam = metadata.get('camera', {})
+    focal = cam.get('focal', 0.0)
+    k1 = cam.get('k1', 0.0)
+    k2 = cam.get('k2', 0.0)
+    tags['FocalLength'] = focal
+    tags['Lens'] = f'{k1} {k2}'
+
+  if verbose:
+    print(f'Writing {len(tags)} tags to {local_path}:')
+
+  if len(tags) == 0:
+    return
+
+  with ExifToolHelper() as et:
+    et.set_tags(
+      [local_path],
+      tags=tags,
+      params=['-overwrite_original']
+    )
+
+def download_file(
+  url,
+  local_path,
+  metadata,
+  encode_exif=False,
+  verbose=True,
+  overwrite=False
+):
   if not overwrite and os.path.isfile(local_path):
     if verbose:
       print(f'{local_path} exists, skipping download...')
@@ -124,12 +156,16 @@ def download_file(url, local_path, verbose=True, overwrite=False):
     with open(local_path, 'wb') as f:
       shutil.copyfileobj(r.raw, f)
 
+  if encode_exif:
+    update_exif(local_path, metadata, verbose)
+
 def download_files(
   frames,
   local_dir,
   preserve_dirs=True,
   merge_metadata=False,
   camera_intrinsics=False,
+  encode_exif=False,
   num_threads=DEFAULT_THREADS,
   verbose=False,
   use_cache=True,
@@ -181,7 +217,15 @@ def download_files(
         json.dump(meta, f, indent=4)
 
   with concurrent.futures.ThreadPoolExecutor(max_workers=num_threads) as executor:
-    executor.map(download_file, urls, local_img_paths, repeat(verbose), repeat(not use_cache))
+    executor.map(
+      download_file,
+      urls,
+      local_img_paths,
+      frames,
+      repeat(encode_exif),
+      repeat(verbose),
+      repeat(not use_cache)
+    )
 
   return local_img_paths
 
@@ -504,6 +548,7 @@ def query(
   width=DEFAULT_WIDTH,
   merge_metadata=False,
   camera_intrinsics=False,
+  update_exif=False,
   custom_id_field=None,
   custom_min_date_field=None,
   skip_geo_file=None,
@@ -551,11 +596,11 @@ def query(
       for i, frame_set in enumerate(stitched):
         folder = f'{str(uuid.uuid4())}-{str(i)}'
         local_dir = os.path.join(output_dir, folder)
-        img_paths += download_files(frame_set, local_dir, False, merge_metadata, camera_intrinsics, num_threads, verbose, use_cache)
+        img_paths += download_files(frame_set, local_dir, False, merge_metadata, camera_intrinsics, update_exif, num_threads, verbose, use_cache)
       if export_geojson:
         write_geojson(stitched, output_dir, False, verbose)
     else:
-      img_paths += download_files(frames, output_dir, True, merge_metadata, camera_intrinsics, num_threads, verbose, use_cache)
+      img_paths += download_files(frames, output_dir, True, merge_metadata, camera_intrinsics, update_exif, num_threads, verbose, use_cache)
       if export_geojson:
         write_geojson([frames], output_dir, True, verbose)
     
@@ -580,6 +625,7 @@ if __name__ == '__main__':
   parser.add_argument('-I', '--custom_id_field', type=str)
   parser.add_argument('-S', '--custom_min_date_field', type=str)
   parser.add_argument('-k', '--camera_intrinsics', action='store_true')
+  parser.add_argument('-E', '--update_exif', action='store_true')
   parser.add_argument('-K', '--skip_geo_file', type=str)
   parser.add_argument('-P', '--image_post_processing', type=str)
   parser.add_argument('-a', '--authorization', type=str, required=True)
@@ -610,6 +656,7 @@ if __name__ == '__main__':
     args.width,
     args.merge_metadata,
     args.camera_intrinsics,
+    args.update_exif,
     args.custom_id_field,
     args.custom_min_date_field,
     args.skip_geo_file,
