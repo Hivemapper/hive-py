@@ -1,6 +1,7 @@
 area==1.1.1
 geographiclib==2.0
 geopy==2.3.0
+pyexiftool==0.5.6
 pyproj==3.6.1
 pyshp==2.3.1
 requests==2.31.0
