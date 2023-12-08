@@ -85,6 +85,8 @@ python -m imagery.query -v -M -k -E --input_file "test_feature.json" --start_day
 `Focal Length` is encoded in pixel units (i.e., not mm)
 `Lens` is encoded as `<k1> <k2>`
 
+Note: `exiftool` is required to be installed (see https://exiftool.org/)
+
 ### Converting .shp to Hivemapper-optimized GeoJSON
 ```
 > python -m util.geo -h
