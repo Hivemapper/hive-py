@@ -21,6 +21,16 @@ DEFAULT_WIDTH = 25
 MERCATOR_TO_WGS = Transformer.from_crs("EPSG:3857", "EPSG:4326", always_xy=True)
 WGS_TO_MERCATOR = Transformer.from_crs("EPSG:4326", "EPSG:3857", always_xy=True)
 
+def flat_list(features):
+  new_features = []
+  for feature in features:
+    if type(feature) is list:
+      for f in feature:
+        new_features.append(f)
+    else:
+      new_features.append(feature)
+  return new_features
+
 # from https://github.com/shapely/shapely/issues/1068#issuecomment-770296614
 def complex_split(geom: LineString, splitter):
     """Split a complex linestring by another geometry without splitting at
@@ -479,8 +489,10 @@ def subtract_geojson(
 
   minuend_features = [convert_to_geojson_poly(f) for f in minuend_features]
   minuend_features = [feature for feature in minuend_features if feature is not None]
+  minuend_features = flat_list(minuend_features)
   subtrahend_features = [convert_to_geojson_poly(f) for f in subtrahend_features]
   subtrahend_features = [feature for feature in subtrahend_features if feature is not None]
+  subtrahend_features = flat_list(subtrahend_features)
 
   minuend_features = [shapely.unary_union(shapely.from_geojson(json.dumps(f))) for f in minuend_features]
   subtrahend_features = [shapely.unary_union(shapely.from_geojson(json.dumps(f))) for f in subtrahend_features]
