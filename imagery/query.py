@@ -521,7 +521,12 @@ def write_geojson(frame_lists, output_dir, points = False, verbose = False):
   if points:
     features = frames_to_points(frame_lists[0])
   else:
-    features = [frames_to_linestring(frames, i) for i, frames in enumerate(frame_lists)]
+    features = []
+    for i, frames in enumerate(frame_lists):
+      if len(frames) > 1:
+        features.append(frames_to_linestring(frames, i))
+      else:
+        frames_to_points(frames)
   geojson = {
     "type": "FeatureCollection",
     "features": features,
