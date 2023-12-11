@@ -485,6 +485,8 @@ def subtract_geojson(
 
   if delta.type == 'MultiPolygon':
     delta = delta.geoms
+  else:
+    delta = [delta]
   delta = [json.loads(shapely.to_geojson(g)) for g in delta]
   delta = [{
     "type": "Feature",
