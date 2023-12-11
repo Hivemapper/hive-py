@@ -294,6 +294,7 @@ def query_frames(geojson_file, start_day, end_day, output_dir, authorization, ve
     custom_ids.append(properties.get('id', None))
 
   features = [geo.convert_to_geojson_poly(f) for f in features]
+  features = [feature for feature in features if feature is not None]
   new_features = []
   for feature in features:
     if type(feature) is list:
@@ -336,6 +337,7 @@ def query_latest_frames(geojson_file, output_dir, authorization, verbose = False
     min_dates.append(properties.get('min_date', None))
 
   features = [geo.convert_to_geojson_poly(f) for f in features]
+  features = [feature for feature in features if feature is not None]
   new_features = []
   for feature in features:
     if type(feature) is list:
