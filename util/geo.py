@@ -329,9 +329,9 @@ def convert_to_geojson_poly(feature, width = DEFAULT_WIDTH):
   t = geom['type']
 
   if t == 'LineString':
-    s = shapely.from_geojson(json.dumps(geom))
-    if not s.is_simple:
-      try:
+    try:
+      s = shapely.from_geojson(json.dumps(geom))
+      if not s.is_simple:
         x = find_self_intersection(s)
         d = s.difference(x)
         sp = complex_split(d, x)
@@ -341,8 +341,8 @@ def convert_to_geojson_poly(feature, width = DEFAULT_WIDTH):
         spolys = [shapely.from_geojson(json.dumps(p)) for p in polys]
         mpoly = unary_union(spolys)
         return json.loads(shapely.to_geojson(mpoly))
-      except:
-        return None
+    except:
+      return None
     return geojson_linestring_to_poly(geom, width)
   elif t == 'Point':
     return geojson_point_to_poly(geom, width)
