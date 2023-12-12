@@ -159,6 +159,8 @@ def download_file(
   if encode_exif:
     update_exif(local_path, metadata, verbose)
 
+  return local_path
+
 def download_files(
   frames,
   local_dir,
@@ -217,7 +219,7 @@ def download_files(
         json.dump(meta, f, indent=4)
 
   with concurrent.futures.ThreadPoolExecutor(max_workers=num_threads) as executor:
-    executor.map(
+    results = executor.map(
       download_file,
       urls,
       local_img_paths,
@@ -226,6 +228,9 @@ def download_files(
       repeat(verbose),
       repeat(not use_cache)
     )
+    for res in results:
+      if verbose:
+        print(f'Downloaded {res}')
 
   return local_img_paths
 
