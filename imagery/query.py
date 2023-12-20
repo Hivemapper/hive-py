@@ -15,6 +15,7 @@ from itertools import repeat
 from geographiclib.geodesic import Geodesic
 from requests.adapters import HTTPAdapter, Retry
 from tqdm import tqdm
+from urllib.parse import quote
 from util import geo
 from imagery.processing import clahe_smart_clip
 
@@ -28,6 +29,7 @@ DEFAULT_THREADS = 20
 DEFAULT_WIDTH = 25
 IMAGERY_API_URL = 'https://hivemapper.com/api/developer/imagery/poly'
 LATEST_IMAGERY_API_URL = 'https://hivemapper.com/api/developer/latest/poly'
+RENEW_ASSET_URL = 'https://hivemapper.com/api/developer/renew/';
 MAX_API_THREADS = 8
 MAX_AREA = 1000 * 1000 # 1km^2
 STATUS_FORCELIST = [429, 500, 502, 503, 504]
@@ -134,13 +136,28 @@ def update_exif(local_path, metadata, verbose=False):
       params=['-overwrite_original']
     )
 
+def renew_asset(asset, authorization):
+  headers = {
+    "content-type": "application/json",
+    "authorization": f'Basic {authorization}',
+  }
+
+  encoded_asset = quote(asset, safe='')
+  url = f'{RENEW_ASSET_URL}{encoded_asset}'
+  with request_session.post(url, headers=headers) as r:
+    r.raise_for_status()
+    resp = r.json()
+    return resp.get('url', asset)
+
 def download_file(
   url,
   local_path,
   metadata,
+  authorization,
   encode_exif=False,
   verbose=True,
-  overwrite=False
+  overwrite=False,
+  is_retry=False
 ):
   if not overwrite and os.path.isfile(local_path):
     if verbose:
@@ -153,7 +170,26 @@ def download_file(
     print("GET {} => {}".format(clean, local_path))
 
   with request_session.get(url, stream=True) as r:
-    r.raise_for_status()
+    try:
+      r.raise_for_status()
+    except Exception as e:
+      if is_retry:
+        raise e
+
+      if verbose:
+        print(f'Renewing asset {url}...')
+
+      new_url = renew_asset(url, authorization)
+      return download_file(
+        new_url,
+        local_path,
+        metadata,
+        authorization,
+        encode_exif,
+        verbose,
+        overwrite,
+        True)
+
     with open(local_path, 'wb') as f:
       shutil.copyfileobj(r.raw, f)
 
@@ -168,6 +204,7 @@ def download_file(
 def download_files(
   frames,
   local_dir,
+  authorization,
   preserve_dirs=True,
   merge_metadata=False,
   camera_intrinsics=False,
@@ -231,6 +268,7 @@ def download_files(
       url,
       local_img_path,
       frame,
+      authorization,
       encode_exif,
       verbose,
       not use_cache
@@ -691,11 +729,33 @@ def query(
       for i, frame_set in enumerate(stitched):
         folder = f'{str(uuid.uuid4())}-{str(i)}'
         local_dir = os.path.join(output_dir, folder)
-        img_paths += download_files(frame_set, local_dir, False, merge_metadata, camera_intrinsics, update_exif, num_threads, verbose, use_cache)
+        img_paths += download_files(
+          frame_set,
+          local_dir,
+          authorization,
+          False,
+          merge_metadata,
+          camera_intrinsics,
+          update_exif,
+          num_threads,
+          verbose,
+          use_cache
+        )
       if export_geojson:
         write_geojson(stitched, output_dir, False, verbose)
     else:
-      img_paths += download_files(frames, output_dir, True, merge_metadata, camera_intrinsics, update_exif, num_threads, verbose, use_cache)
+      img_paths += download_files(
+        frames,
+        output_dir,
+        authorization,
+        True,
+        merge_metadata,
+        camera_intrinsics,
+        update_exif,
+        num_threads,
+        verbose,
+        use_cache
+      )
       if export_geojson:
         write_geojson([frames], output_dir, True, verbose)
     
