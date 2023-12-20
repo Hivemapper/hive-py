@@ -28,6 +28,7 @@ DEFAULT_THREADS = 20
 DEFAULT_WIDTH = 25
 IMAGERY_API_URL = 'https://hivemapper.com/api/developer/imagery/poly'
 LATEST_IMAGERY_API_URL = 'https://hivemapper.com/api/developer/latest/poly'
+MAX_API_THREADS = 8
 MAX_AREA = 1000 * 1000 # 1km^2
 STATUS_FORCELIST = [429, 500, 502, 503, 504]
 VALID_POST_PROCESSING_OPTS = ['clahe-smart-clip']
@@ -252,7 +253,8 @@ def query_imagery(
 
   itr = features if not verbose else tqdm(features)
 
-  executor = concurrent.futures.ThreadPoolExecutor(max_workers=num_threads)
+  threads = min(MAX_API_THREADS, num_threads)
+  executor = concurrent.futures.ThreadPoolExecutor(max_workers=threads)
   futures = []
 
   for feature, custom_id in zip(itr, custom_ids):
@@ -294,7 +296,8 @@ def query_latest_imagery(
   }
   frames = []
 
-  executor = concurrent.futures.ThreadPoolExecutor(max_workers=num_threads)
+  threads = min(MAX_API_THREADS, num_threads)
+  executor = concurrent.futures.ThreadPoolExecutor(max_workers=threads)
   futures = []
 
   itr = features if not verbose else tqdm(features)
