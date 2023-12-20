@@ -234,7 +234,16 @@ def download_files(
 
   return local_img_paths
 
-def query_imagery(features, weeks, custom_ids, authorization, local_dir, verbose=False, use_cache=True):
+def query_imagery(
+  features,
+  weeks,
+  custom_ids,
+  authorization,
+  local_dir,
+  num_threads=DEFAULT_RETRIES,
+  verbose=False,
+  use_cache=True,
+):
   headers = {
     "content-type": "application/json",
     "authorization": f'Basic {authorization}',
@@ -242,6 +251,10 @@ def query_imagery(features, weeks, custom_ids, authorization, local_dir, verbose
   frames = []
 
   itr = features if not verbose else tqdm(features)
+
+  executor = concurrent.futures.ThreadPoolExecutor(max_workers=num_threads)
+  futures = []
+
   for feature, custom_id in zip(itr, custom_ids):
     data = feature.get('geometry', feature)
     assert(area(data) <= MAX_AREA)
@@ -251,20 +264,38 @@ def query_imagery(features, weeks, custom_ids, authorization, local_dir, verbose
       if verbose:
         print(url)
 
-      results = post_cached(url, data, headers, verbose, use_cache)
-      if custom_id is not None:
-        for result in results:
-          result['id'] = custom_id
-      frames += results
+      future = executor.submit(post_cached, url, data, headers, verbose, use_cache)
+      futures.append(future)
+
+  for future in concurrent.futures.as_completed(futures):
+    results = future.result()
+
+    if custom_id is not None:
+      for result in results:
+        result['id'] = custom_id
+
+    frames += results
 
   return frames
 
-def query_latest_imagery(features, custom_ids, min_days, authorization, local_dir, verbose=False, use_cache=True):
+def query_latest_imagery(
+  features,
+  custom_ids,
+  min_days,
+  authorization,
+  local_dir,
+  num_threads=DEFAULT_THREADS,
+  verbose=False,
+  use_cache=True
+):
   headers = {
     "content-type": "application/json",
     "authorization": f'Basic {authorization}',
   }
   frames = []
+
+  executor = concurrent.futures.ThreadPoolExecutor(max_workers=num_threads)
+  futures = []
 
   itr = features if not verbose else tqdm(features)
   for feature, custom_id, min_day in zip(itr, custom_ids, min_days):
@@ -277,15 +308,30 @@ def query_latest_imagery(features, custom_ids, min_days, authorization, local_di
     if verbose:
       print(url)
 
-    results = post_cached(url, data, headers, verbose, use_cache)
+    future = executor.submit(post_cached, url, data, headers, verbose, use_cache)
+    futures.append(future)
+
+  for future in concurrent.futures.as_completed(futures):
+    results = future.result()
+
     if custom_id is not None:
       for result in results:
         result['id'] = custom_id
+
     frames += results
 
   return frames
 
-def query_frames(geojson_file, start_day, end_day, output_dir, authorization, verbose = False, use_cache = True):
+def query_frames(
+  geojson_file,
+  start_day,
+  end_day,
+  output_dir,
+  authorization,
+  num_threads = DEFAULT_THREADS,
+  verbose = False,
+  use_cache = True
+):
   assert(start_day <= end_day)
 
   features = []
@@ -323,12 +369,27 @@ def query_frames(geojson_file, start_day, end_day, output_dir, authorization, ve
 
   if verbose:
     print(f'Querying {len(features)} features for imagery across {len(weeks)} weeks...')
-  frames = query_imagery(features, weeks, custom_ids, authorization, output_dir, verbose, use_cache)
+  frames = query_imagery(
+    features, weeks,
+    custom_ids,
+    authorization,
+    output_dir,
+    num_threads,
+    verbose,
+    use_cache
+  )
   filtered_frames = [frame for frame in frames if frame_within_day_bounds(frame, start_day, end_day)]
 
   return filtered_frames
 
-def query_latest_frames(geojson_file, output_dir, authorization, verbose = False, use_cache = True):
+def query_latest_frames(
+  geojson_file,
+  output_dir,
+  authorization,
+  num_threads = DEFAULT_THREADS,
+  verbose = False,
+  use_cache = True
+):
   features = []
   with open(geojson_file, 'r') as f:
     fc = json.load(f)
@@ -356,7 +417,16 @@ def query_latest_frames(geojson_file, output_dir, authorization, verbose = False
 
   if verbose:
     print(f'Querying {len(features)} features for imagery across for latest...')
-  frames = query_latest_imagery(features, custom_ids, min_dates, authorization, output_dir, verbose, use_cache)
+  frames = query_latest_imagery(
+    features,
+    custom_ids,
+    min_dates,
+    authorization,
+    output_dir,
+    num_threads,
+    verbose,
+    use_cache
+  )
 
   return frames
 
