@@ -145,7 +145,7 @@ def download_file(
   if not overwrite and os.path.isfile(local_path):
     if verbose:
       print(f'{local_path} exists, skipping download...')
-    return
+    return local_path
 
   os.makedirs(os.path.dirname(local_path), exist_ok=True)
   clean = url.split('?')[0].split('.com/')[1]
@@ -156,6 +156,9 @@ def download_file(
     r.raise_for_status()
     with open(local_path, 'wb') as f:
       shutil.copyfileobj(r.raw, f)
+
+    if verbose:
+      print(f'Downloaded {local_path}')
 
   if encode_exif:
     update_exif(local_path, metadata, verbose)
@@ -219,19 +222,26 @@ def download_files(
         meta = {key : frame[key] for key in frame if key != 'url'}
         json.dump(meta, f, indent=4)
 
-  with concurrent.futures.ThreadPoolExecutor(max_workers=num_threads) as executor:
-    results = executor.map(
+  executor = concurrent.futures.ThreadPoolExecutor(max_workers=num_threads)
+  futures = []
+
+  for url, local_img_path, frame in zip(urls, local_img_paths, frames):
+    future = executor.submit(
       download_file,
-      urls,
-      local_img_paths,
-      frames,
-      repeat(encode_exif),
-      repeat(verbose),
-      repeat(not use_cache)
+      url,
+      local_img_path,
+      frame,
+      encode_exif,
+      verbose,
+      not use_cache
     )
-    for res in results:
-      if verbose:
-        print(f'Downloaded {res}')
+    futures.append(future)
+
+  for future in concurrent.futures.as_completed(futures):
+    try:
+      results = future.result()
+    except Exception as e:
+      print(e)
 
   return local_img_paths
 
@@ -665,9 +675,9 @@ def query(
       geojson_file = geojson_file2
 
   if latest:
-    frames = query_latest_frames(geojson_file, output_dir, authorization, verbose, use_cache)
+    frames = query_latest_frames(geojson_file, output_dir, authorization, num_threads, verbose, use_cache)
   else:
-    frames = query_frames(geojson_file, start_day, end_day, output_dir, authorization, verbose, use_cache)
+    frames = query_frames(geojson_file, start_day, end_day, output_dir, authorization, num_threads, verbose, use_cache)
   print(f'Found {len(frames)} images!')
 
   img_paths = []
