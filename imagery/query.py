@@ -73,7 +73,10 @@ def post_cached(url, data, headers, verbose=True, use_cache=True, pbar=None):
         if pbar is not None:
           pbar.update(1)
       with open(loc, 'r') as f:
-        return json.load(f)
+        try:
+          return json.load(f)
+        except:
+          pass
 
   with request_session.post(url, data=json.dumps(data), headers=headers) as r:
     r.raise_for_status()
@@ -184,7 +187,7 @@ def download_file(
         raise e
 
       if verbose:
-        print(f'Renewing asset {url}...')
+        print(f'Renewing asset {url.split("?")[0]}...')
 
       new_url = renew_asset(url, authorization)
       return download_file(
