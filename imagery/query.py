@@ -831,5 +831,5 @@ if __name__ == '__main__':
     with concurrent.futures.ThreadPoolExecutor(max_workers=args.num_threads) as executor:
       executor.map(post_process, img_paths, repeat(args.image_post_processing), repeat(args.verbose))
 
-  if args.cache:
-    clear_cache(args.verbose)
+  # if args.cache:
+  #   clear_cache(args.verbose)
