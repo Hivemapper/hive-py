@@ -691,8 +691,8 @@ def write_geojson(frame_lists, output_dir, points = False, verbose = False):
   if verbose:
     print(f'Wrote geojson to {geojson_path}')
 
-def query(
-  file_path,
+def _query(
+  geojson_file,
   start_day,
   end_day,
   output_dir,
@@ -714,29 +714,6 @@ def query(
   verbose=False,
   use_cache=True,
 ):
-  if file_path.endswith('.shp'):
-    geojson_file = f'{file_path[0 : len(file_path) - 4]}.geojson_{str(uuid.uuid4())}'
-    geo.transform_shapefile_to_geojson_polygons(file_path, geojson_file, width, verbose)
-  elif file_path.endswith('.csv'):
-    geojson_file = f'{file_path[0 : len(file_path) - 4]}.geojson_{str(uuid.uuid4())}'
-    geo.transform_csv_to_geojson_polygons(
-      file_path,
-      geojson_file,
-      width,
-      custom_id_field,
-      custom_min_date_field,
-      verbose,
-    )
-  else:
-    geojson_file = file_path
-
-  if skip_geo_file:
-    skips = skip_geo_file.split(',')
-    for skip_f in skips:
-      geojson_file2 = geojson_file.replace('.json', '_delta.json')
-      geo.subtract_geojson(geojson_file, skip_f, geojson_file2, width, verbose)
-      geojson_file = geojson_file2
-
   if latest:
     frames = query_latest_frames(geojson_file, output_dir, authorization, num_threads, verbose, use_cache)
   else:
@@ -795,6 +772,76 @@ def query(
     pbar.close()
 
   return img_paths
+
+def query(
+  file_path,
+  start_day,
+  end_day,
+  output_dir,
+  authorization,
+  latest=False,
+  export_geojson=False,
+  should_stitch=False,
+  max_dist=DEFAULT_STITCH_MAX_DISTANCE,
+  max_lag=DEFAULT_STITCH_MAX_LAG,
+  max_angle=DEFAULT_STITCH_MAX_ANGLE,
+  width=DEFAULT_WIDTH,
+  merge_metadata=False,
+  camera_intrinsics=False,
+  update_exif=False,
+  custom_id_field=None,
+  custom_min_date_field=None,
+  skip_geo_file=None,
+  num_threads=DEFAULT_THREADS,
+  verbose=False,
+  use_cache=True,
+):
+  if file_path.endswith('.shp'):
+    geojson_file = f'{file_path[0 : len(file_path) - 4]}.geojson_{str(uuid.uuid4())}'
+    geo.transform_shapefile_to_geojson_polygons(file_path, geojson_file, width, verbose)
+  elif file_path.endswith('.csv'):
+    geojson_file = f'{file_path[0 : len(file_path) - 4]}.geojson_{str(uuid.uuid4())}'
+    geo.transform_csv_to_geojson_polygons(
+      file_path,
+      geojson_file,
+      width,
+      custom_id_field,
+      custom_min_date_field,
+      verbose,
+    )
+  else:
+    geojson_file = file_path
+
+  if skip_geo_file:
+    skips = skip_geo_file.split(',')
+    for skip_f in skips:
+      geojson_file2 = geojson_file.replace('.json', '_delta.json')
+      geo.subtract_geojson(geojson_file, skip_f, geojson_file2, width, verbose)
+      geojson_file = geojson_file2
+
+  _query(
+    geojson_file,
+    start_day,
+    end_day,
+    output_dir,
+    authorization,
+    latest,
+    export_geojson,
+    should_stitch,
+    max_dist,
+    max_lag,
+    max_angle,
+    width,
+    merge_metadata,
+    camera_intrinsics,
+    update_exif,
+    custom_id_field,
+    custom_min_date_field,
+    skip_geo_file,
+    num_threads,
+    verbose,
+    use_cache,
+  )
 
 if __name__ == '__main__':
   parser = argparse.ArgumentParser()
