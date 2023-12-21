@@ -533,7 +533,7 @@ def stitch(
       skip_stitching.append([seq])
   seqs = sorted(seqs, key=lambda s: s[0].get('timestamp'))
 
-  colls = []
+  colls = [[]]
   if seqs:
     colls = [[seqs.pop(0)]]
 
