@@ -512,7 +512,9 @@ def subtract_geojson(
   subtrahend_features = flat_list(subtrahend_features)
 
   union_each_feature_inplace(minuend_features)
+  minuend_features = [f for f in minuend_features if f is not None]
   union_each_feature_inplace(subtrahend_features)
+  subtrahend_features = [f for f in subtrahend_features if f is not None]
 
   delta = shapely.difference(
     union_features(minuend_features),
