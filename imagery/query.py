@@ -244,7 +244,7 @@ def download_files(
   local_meta_paths = [os.path.join(local_dir, path) for path in meta_paths]
 
   if len(frames) == 0:
-    return
+    return []
 
   if camera_intrinsics:
     for frame in frames:
