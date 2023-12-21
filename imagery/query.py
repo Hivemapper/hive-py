@@ -759,6 +759,54 @@ def _query(
 
   return img_paths
 
+def transform_input(
+  file_path,
+  width=DEFAULT_WIDTH,
+  custom_id_field=None,
+  custom_min_date_field=None,
+  skip_geo_file=None,
+  verbose=False,
+  use_cache=True,
+):
+  loc = None
+  if use_cache:
+    loc =f'transformed_{file_path}'
+    loc = loc.replace('/', '_')
+    loc = loc.replace('\\', '_')
+    loc = os.path.join(CACHE_DIR, loc)
+    if os.path.isfile(loc):
+      with open(loc, 'r') as f:
+        return f.read()
+
+  if file_path.endswith('.shp'):
+    geojson_file = f'{file_path[0 : len(file_path) - 4]}.geojson_{str(uuid.uuid4())}'
+    geo.transform_shapefile_to_geojson_polygons(file_path, geojson_file, width, verbose)
+  elif file_path.endswith('.csv'):
+    geojson_file = f'{file_path[0 : len(file_path) - 4]}.geojson_{str(uuid.uuid4())}'
+    geo.transform_csv_to_geojson_polygons(
+      file_path,
+      geojson_file,
+      width,
+      custom_id_field,
+      custom_min_date_field,
+      verbose,
+    )
+  else:
+    geojson_file = file_path
+
+  if skip_geo_file:
+    skips = skip_geo_file.split(',')
+    for skip_f in skips:
+      geojson_file2 = geojson_file.replace('.json', '_delta.json')
+      geo.subtract_geojson(geojson_file, skip_f, geojson_file2, width, verbose)
+      geojson_file = geojson_file2
+
+  if use_cache:
+    with open(loc, 'w') as f:
+      f.write(geojson_file)
+
+  return geojson_file
+
 def query(
   file_path,
   start_day,
@@ -783,28 +831,15 @@ def query(
   use_cache=True,
   use_batches=False,
 ):
-  if file_path.endswith('.shp'):
-    geojson_file = f'{file_path[0 : len(file_path) - 4]}.geojson_{str(uuid.uuid4())}'
-    geo.transform_shapefile_to_geojson_polygons(file_path, geojson_file, width, verbose)
-  elif file_path.endswith('.csv'):
-    geojson_file = f'{file_path[0 : len(file_path) - 4]}.geojson_{str(uuid.uuid4())}'
-    geo.transform_csv_to_geojson_polygons(
-      file_path,
-      geojson_file,
-      width,
-      custom_id_field,
-      custom_min_date_field,
-      verbose,
-    )
-  else:
-    geojson_file = file_path
-
-  if skip_geo_file:
-    skips = skip_geo_file.split(',')
-    for skip_f in skips:
-      geojson_file2 = geojson_file.replace('.json', '_delta.json')
-      geo.subtract_geojson(geojson_file, skip_f, geojson_file2, width, verbose)
-      geojson_file = geojson_file2
+  geojson_file = transform_input(
+    file_path,
+    width,
+    custom_id_field,
+    custom_min_date_field,
+    skip_geo_file,
+    verbose,
+    use_cache,
+  )
 
   features, custom_ids, min_dates = load_features(geojson_file)
 
