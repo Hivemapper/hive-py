@@ -79,7 +79,16 @@ def post_cached(url, data, headers, verbose=True, use_cache=True, pbar=None):
           pass
 
   with request_session.post(url, data=json.dumps(data), headers=headers) as r:
-    r.raise_for_status()
+    try:
+      r.raise_for_status()
+    except requests.exceptions.HTTPError as e:
+      if e.response.status_code == 500:
+        if verbose:
+          print('Encountered a server error, skipping:');
+          print(e)
+        return []
+      else:
+        raise e
     resp = r.json()
     frames = resp.get('frames', [])
 

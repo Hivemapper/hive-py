@@ -13,6 +13,7 @@ from geographiclib.geodesic import Geodesic
 from pyproj import Transformer
 from shapely.geometry import box, Polygon, LineString, MultiPolygon, GeometryCollection, Point, MultiPoint
 from shapely.ops import split, snap, unary_union
+from shapely.validation import make_valid
 from tqdm import tqdm
 
 AREA_LIMIT = 1000000
@@ -470,6 +471,22 @@ def transform_csv_to_geojson_polygons(
 
   return polygons
 
+def union_each_feature_inplace(features):
+  for i, feature in enumerate(features):
+    f = shapely.from_geojson(json.dumps(feature))
+    if not f.is_valid:
+      f = make_valid(f)
+    try:
+      features[i] = shapely.unary_union(f)
+    except shapely.errors.GEOSException as e:
+      features[i] = None
+
+def union_features(features):
+  try:
+    return shapely.unary_union(features)
+  except shapely.errors.GEOSException as e:
+    return shapely.unary_union([f for f in features if f.is_valid])
+
 def subtract_geojson(
   minuend_in,
   subtrahend_in,
@@ -494,12 +511,12 @@ def subtract_geojson(
   subtrahend_features = [feature for feature in subtrahend_features if feature is not None]
   subtrahend_features = flat_list(subtrahend_features)
 
-  minuend_features = [shapely.unary_union(shapely.from_geojson(json.dumps(f))) for f in minuend_features]
-  subtrahend_features = [shapely.unary_union(shapely.from_geojson(json.dumps(f))) for f in subtrahend_features]
+  union_each_feature_inplace(minuend_features)
+  union_each_feature_inplace(subtrahend_features)
 
   delta = shapely.difference(
-    shapely.unary_union(minuend_features),
-    shapely.unary_union(subtrahend_features))
+    union_features(minuend_features),
+    union_features(subtrahend_features))
 
   if delta.type == 'MultiPolygon':
     delta = delta.geoms
