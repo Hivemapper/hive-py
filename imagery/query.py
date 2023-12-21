@@ -770,7 +770,7 @@ def transform_input(
 ):
   loc = None
   if use_cache:
-    loc =f'transformed_{file_path}'
+    loc = f'transformed_{file_path}'
     loc = loc.replace('/', '_')
     loc = loc.replace('\\', '_')
     loc = os.path.join(CACHE_DIR, loc)
