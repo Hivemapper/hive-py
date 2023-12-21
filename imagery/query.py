@@ -768,6 +768,7 @@ def transform_input(
   verbose=False,
   use_cache=True,
 ):
+  geojson_file = None
   loc = None
   if use_cache:
     loc = f'transformed_{file_path}'
@@ -776,12 +777,15 @@ def transform_input(
     loc = os.path.join(CACHE_DIR, loc)
     if os.path.isfile(loc):
       with open(loc, 'r') as f:
-        return f.read()
+        geojson_file = f.read()
 
-  if file_path.endswith('.shp'):
+      if verbose:
+        print(f'Using cached geometry: {geojson_file}')
+
+  if geojson_file is None and file_path.endswith('.shp'):
     geojson_file = f'{file_path[0 : len(file_path) - 4]}.geojson_{str(uuid.uuid4())}'
     geo.transform_shapefile_to_geojson_polygons(file_path, geojson_file, width, verbose)
-  elif file_path.endswith('.csv'):
+  elif geojson_file is None and file_path.endswith('.csv'):
     geojson_file = f'{file_path[0 : len(file_path) - 4]}.geojson_{str(uuid.uuid4())}'
     geo.transform_csv_to_geojson_polygons(
       file_path,
@@ -791,11 +795,27 @@ def transform_input(
       custom_min_date_field,
       verbose,
     )
-  else:
+  elif geojson_file is None:
     geojson_file = file_path
+
+  if use_cache:
+    with open(loc, 'w') as f:
+      f.write(geojson_file)
 
   if skip_geo_file:
     skips = skip_geo_file.split(',')
+    geojson_file2 = None
+
+    if use_cache:
+      loc += '_'.join(skips).replace('/','_').replace('\\', '_')
+      print(loc)
+      if os.path.isfile(loc):
+        with open(loc, 'r') as f:
+          geojson_file = f.read()
+        if verbose:
+          print(f'Using cached subtracted geometry: {geojson_file}')
+          return geojson_file
+
     for skip_f in skips:
       geojson_file2 = geojson_file.replace('.json', '_delta.json')
       geo.subtract_geojson(geojson_file, skip_f, geojson_file2, width, verbose)
