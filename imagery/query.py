@@ -311,11 +311,10 @@ def query_imagery(
     "authorization": f'Basic {authorization}',
   }
   frames = []
+  pbar = None
 
   if verbose:
     pbar = tqdm(total=len(features) * len(weeks))
-  else:
-    pbar = None
 
   threads = min(MAX_API_THREADS, num_threads)
   executor = concurrent.futures.ThreadPoolExecutor(max_workers=threads)
@@ -362,11 +361,10 @@ def query_latest_imagery(
     "authorization": f'Basic {authorization}',
   }
   frames = []
+  pbar = None
 
   if verbose:
     pbar = tqdm(total=len(features))
-  else:
-    pbar = None
 
   threads = min(MAX_API_THREADS, num_threads)
   executor = concurrent.futures.ThreadPoolExecutor(max_workers=threads)
@@ -707,13 +705,12 @@ def _query(
   print(f'Found {len(frames)} images!')
 
   img_paths = []
+  pbar = None
 
   if frames:
     if verbose:
       print(f'Downloading with {num_threads} threads...')
       pbar = tqdm(total=len(frames))
-    else:
-      pbar = None  
 
     if should_stitch:
       stitched = stitch(frames, max_dist, max_lag, max_angle, verbose)
