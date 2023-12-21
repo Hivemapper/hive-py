@@ -19,6 +19,7 @@ from urllib.parse import quote
 from util import geo
 from imagery.processing import clahe_smart_clip
 
+BATCH_SIZE = 10000
 CACHE_DIR = '.hivepy_cache'
 DEFAULT_BACKOFF = 1.0
 DEFAULT_RETRIES = 10
@@ -399,7 +400,8 @@ def query_latest_imagery(
   return frames
 
 def query_frames(
-  geojson_file,
+  features,
+  custom_ids,
   start_day,
   end_day,
   output_dir,
@@ -409,29 +411,6 @@ def query_frames(
   use_cache = True
 ):
   assert(start_day <= end_day)
-
-  features = []
-  with open(geojson_file, 'r') as f:
-    fc = json.load(f)
-    features += fc.get('features', [fc])
-
-  custom_ids = []
-  for feature in features:
-    properties = feature.get('properties', {})
-    custom_ids.append(properties.get('id', None))
-
-  features = [geo.convert_to_geojson_poly(f) for f in features]
-  features = [feature for feature in features if feature is not None]
-  new_features = []
-  for feature in features:
-    if type(feature) is list:
-      for f in feature:
-        new_features.append(f)
-    else:
-      new_features.append(feature)
-  features = new_features
-
-  assert(len(features))
 
   s = start_day
   weeks = [s.strftime("%Y-%m-%d"), end_day.strftime("%Y-%m-%d")]
@@ -458,14 +437,7 @@ def query_frames(
 
   return filtered_frames
 
-def query_latest_frames(
-  geojson_file,
-  output_dir,
-  authorization,
-  num_threads = DEFAULT_THREADS,
-  verbose = False,
-  use_cache = True
-):
+def load_features(geojson_file):
   features = []
   with open(geojson_file, 'r') as f:
     fc = json.load(f)
@@ -491,6 +463,18 @@ def query_latest_frames(
 
   assert(len(features))
 
+  return features, custom_ids, min_dates
+
+def query_latest_frames(
+  features,
+  custom_ids,
+  min_dates,
+  output_dir,
+  authorization,
+  num_threads = DEFAULT_THREADS,
+  verbose = False,
+  use_cache = True
+):
   if verbose:
     print(f'Querying {len(features)} features for imagery across for latest...')
   frames = query_latest_imagery(
@@ -691,8 +675,10 @@ def write_geojson(frame_lists, output_dir, points = False, verbose = False):
   if verbose:
     print(f'Wrote geojson to {geojson_path}')
 
-def query(
-  file_path,
+def _query(
+  features,
+  custom_ids,
+  min_dates,
   start_day,
   end_day,
   output_dir,
@@ -714,33 +700,10 @@ def query(
   verbose=False,
   use_cache=True,
 ):
-  if file_path.endswith('.shp'):
-    geojson_file = f'{file_path[0 : len(file_path) - 4]}.geojson_{str(uuid.uuid4())}'
-    geo.transform_shapefile_to_geojson_polygons(file_path, geojson_file, width, verbose)
-  elif file_path.endswith('.csv'):
-    geojson_file = f'{file_path[0 : len(file_path) - 4]}.geojson_{str(uuid.uuid4())}'
-    geo.transform_csv_to_geojson_polygons(
-      file_path,
-      geojson_file,
-      width,
-      custom_id_field,
-      custom_min_date_field,
-      verbose,
-    )
-  else:
-    geojson_file = file_path
-
-  if skip_geo_file:
-    skips = skip_geo_file.split(',')
-    for skip_f in skips:
-      geojson_file2 = geojson_file.replace('.json', '_delta.json')
-      geo.subtract_geojson(geojson_file, skip_f, geojson_file2, width, verbose)
-      geojson_file = geojson_file2
-
   if latest:
-    frames = query_latest_frames(geojson_file, output_dir, authorization, num_threads, verbose, use_cache)
+    frames = query_latest_frames(features, custom_ids, min_dates, output_dir, authorization, num_threads, verbose, use_cache)
   else:
-    frames = query_frames(geojson_file, start_day, end_day, output_dir, authorization, num_threads, verbose, use_cache)
+    frames = query_frames(features, custom_ids, start_day, end_day, output_dir, authorization, num_threads, verbose, use_cache)
   print(f'Found {len(frames)} images!')
 
   img_paths = []
@@ -796,6 +759,128 @@ def query(
 
   return img_paths
 
+def query(
+  file_path,
+  start_day,
+  end_day,
+  output_dir,
+  authorization,
+  latest=False,
+  export_geojson=False,
+  should_stitch=False,
+  max_dist=DEFAULT_STITCH_MAX_DISTANCE,
+  max_lag=DEFAULT_STITCH_MAX_LAG,
+  max_angle=DEFAULT_STITCH_MAX_ANGLE,
+  width=DEFAULT_WIDTH,
+  merge_metadata=False,
+  camera_intrinsics=False,
+  update_exif=False,
+  custom_id_field=None,
+  custom_min_date_field=None,
+  skip_geo_file=None,
+  num_threads=DEFAULT_THREADS,
+  verbose=False,
+  use_cache=True,
+  use_batches=False,
+):
+  if file_path.endswith('.shp'):
+    geojson_file = f'{file_path[0 : len(file_path) - 4]}.geojson_{str(uuid.uuid4())}'
+    geo.transform_shapefile_to_geojson_polygons(file_path, geojson_file, width, verbose)
+  elif file_path.endswith('.csv'):
+    geojson_file = f'{file_path[0 : len(file_path) - 4]}.geojson_{str(uuid.uuid4())}'
+    geo.transform_csv_to_geojson_polygons(
+      file_path,
+      geojson_file,
+      width,
+      custom_id_field,
+      custom_min_date_field,
+      verbose,
+    )
+  else:
+    geojson_file = file_path
+
+  if skip_geo_file:
+    skips = skip_geo_file.split(',')
+    for skip_f in skips:
+      geojson_file2 = geojson_file.replace('.json', '_delta.json')
+      geo.subtract_geojson(geojson_file, skip_f, geojson_file2, width, verbose)
+      geojson_file = geojson_file2
+
+  features, custom_ids, min_dates = load_features(geojson_file)
+
+  if not use_batches:
+    _query(
+      features,
+      custom_ids,
+      min_dates,
+      start_day,
+      end_day,
+      output_dir,
+      authorization,
+      latest,
+      export_geojson,
+      should_stitch,
+      max_dist,
+      max_lag,
+      max_angle,
+      width,
+      merge_metadata,
+      camera_intrinsics,
+      update_exif,
+      custom_id_field,
+      custom_min_date_field,
+      skip_geo_file,
+      num_threads,
+      verbose,
+      use_cache,
+    )
+    return
+
+  for i in range(0, len(features), BATCH_SIZE):
+    if verbose:
+      print(f'processing {i} to {i + BATCH_SIZE} features...')
+
+    loc = None
+    if use_cache:
+      with open(geojson_file, 'rb') as f:
+        h = hashlib.md5(f.read()).hexdigest()
+        loc = os.path.join(CACHE_DIR, f'batch_{start_day}_{end_day}_{latest}_{should_stitch}_{h}_{i}')
+
+      if os.path.isfile(loc):
+        if verbose:
+          print('Cache hit -- skipping batch.')
+        continue
+   
+    _query(
+      features[i:i + BATCH_SIZE],
+      custom_ids[i:i + BATCH_SIZE],
+      min_dates[i:i + BATCH_SIZE],
+      start_day,
+      end_day,
+      output_dir,
+      authorization,
+      latest,
+      export_geojson,
+      should_stitch,
+      max_dist,
+      max_lag,
+      max_angle,
+      width,
+      merge_metadata,
+      camera_intrinsics,
+      update_exif,
+      custom_id_field,
+      custom_min_date_field,
+      skip_geo_file,
+      num_threads,
+      verbose,
+      use_cache,
+    )
+
+    if loc is not None:
+      with open(loc, 'w') as f:
+        f.write(datetime.now().isoformat())
+
 if __name__ == '__main__':
   parser = argparse.ArgumentParser()
   parser.add_argument('-i', '--input_file', type=str, required=True)
@@ -820,6 +905,7 @@ if __name__ == '__main__':
   parser.add_argument('-c', '--num_threads', type=int, default=DEFAULT_THREADS)
   parser.add_argument('-v', '--verbose', action='store_true')
   parser.add_argument('-C', '--cache', action='store_true')
+  parser.add_argument('-b', '--use_batches', action='store_true')
   args = parser.parse_args()
 
   if args.cache:
@@ -851,6 +937,7 @@ if __name__ == '__main__':
     args.num_threads,
     args.verbose,
     args.cache,
+    args.use_batches,
   )
 
   if args.image_post_processing:
