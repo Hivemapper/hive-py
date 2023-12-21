@@ -59,7 +59,7 @@ def clear_cache(verbose = True):
     print(f'Deleting cache dir: {CACHE_DIR}')
   shutil.rmtree(CACHE_DIR)
 
-def post_cached(url, data, headers, verbose=True, use_cache=True):
+def post_cached(url, data, headers, verbose=True, use_cache=True, pbar=None):
   loc = None
   if use_cache:
     str_data = json.dumps({ 'url': url, 'data': data }).encode('utf-8')
@@ -69,6 +69,8 @@ def post_cached(url, data, headers, verbose=True, use_cache=True):
     if os.path.isfile(loc):
       if verbose:
         print('Using cached data...')
+        if pbar is not None:
+          pbar.update(1)
       with open(loc, 'r') as f:
         return json.load(f)
 
@@ -80,6 +82,9 @@ def post_cached(url, data, headers, verbose=True, use_cache=True):
     if loc is not None:
       with open(loc, 'w') as f:
         json.dump(frames, f)
+
+    if pbar is not None:
+      pbar.update(1)
 
     return frames
 
@@ -157,6 +162,7 @@ def download_file(
   encode_exif=False,
   verbose=True,
   overwrite=False,
+  pbar=None,
   is_retry=False
 ):
   if not overwrite and os.path.isfile(local_path):
@@ -188,6 +194,7 @@ def download_file(
         encode_exif,
         verbose,
         overwrite,
+        pbar,
         True)
 
     with open(local_path, 'wb') as f:
@@ -198,6 +205,9 @@ def download_file(
 
   if encode_exif:
     update_exif(local_path, metadata, verbose)
+
+  if pbar:
+    pbar.update(1)
 
   return local_path
 
@@ -212,6 +222,7 @@ def download_files(
   num_threads=DEFAULT_THREADS,
   verbose=False,
   use_cache=True,
+  pbar=None,
 ):
   urls = [frame.get('url') for frame in frames]
   if preserve_dirs:
@@ -271,7 +282,8 @@ def download_files(
       authorization,
       encode_exif,
       verbose,
-      not use_cache
+      not use_cache,
+      pbar,
     )
     futures.append(future)
 
@@ -299,13 +311,16 @@ def query_imagery(
   }
   frames = []
 
-  itr = features if not verbose else tqdm(features)
+  if verbose:
+    pbar = tqdm(total=len(features) * len(weeks))
+  else:
+    pbar = None
 
   threads = min(MAX_API_THREADS, num_threads)
   executor = concurrent.futures.ThreadPoolExecutor(max_workers=threads)
   futures = []
 
-  for feature, custom_id in zip(itr, custom_ids):
+  for feature, custom_id in zip(features, custom_ids):
     data = feature.get('geometry', feature)
     assert(area(data) <= MAX_AREA)
 
@@ -314,7 +329,7 @@ def query_imagery(
       if verbose:
         print(url)
 
-      future = executor.submit(post_cached, url, data, headers, verbose, use_cache)
+      future = executor.submit(post_cached, url, data, headers, verbose, use_cache, pbar)
       futures.append(future)
 
   for future in concurrent.futures.as_completed(futures):
@@ -325,6 +340,9 @@ def query_imagery(
         result['id'] = custom_id
 
     frames += results
+
+  if pbar is not None:
+    pbar.close()
 
   return frames
 
@@ -344,12 +362,16 @@ def query_latest_imagery(
   }
   frames = []
 
+  if verbose:
+    pbar = tqdm(total=len(features))
+  else:
+    pbar = None
+
   threads = min(MAX_API_THREADS, num_threads)
   executor = concurrent.futures.ThreadPoolExecutor(max_workers=threads)
   futures = []
 
-  itr = features if not verbose else tqdm(features)
-  for feature, custom_id, min_day in zip(itr, custom_ids, min_days):
+  for feature, custom_id, min_day in zip(features, custom_ids, min_days):
     data = feature.get('geometry', feature)
     assert(area(data) <= MAX_AREA)
 
@@ -359,7 +381,7 @@ def query_latest_imagery(
     if verbose:
       print(url)
 
-    future = executor.submit(post_cached, url, data, headers, verbose, use_cache)
+    future = executor.submit(post_cached, url, data, headers, verbose, use_cache, pbar)
     futures.append(future)
 
   for future in concurrent.futures.as_completed(futures):
@@ -370,6 +392,9 @@ def query_latest_imagery(
         result['id'] = custom_id
 
     frames += results
+
+  if pbar is not None:
+    pbar.close()
 
   return frames
 
@@ -723,6 +748,9 @@ def query(
   if frames:
     if verbose:
       print(f'Downloading with {num_threads} threads...')
+      pbar = tqdm(total=len(frames))
+    else:
+      pbar = None  
 
     if should_stitch:
       stitched = stitch(frames, max_dist, max_lag, max_angle, verbose)
@@ -739,7 +767,8 @@ def query(
           update_exif,
           num_threads,
           verbose,
-          use_cache
+          use_cache,
+          pbar,
         )
       if export_geojson:
         write_geojson(stitched, output_dir, False, verbose)
@@ -754,12 +783,16 @@ def query(
         update_exif,
         num_threads,
         verbose,
-        use_cache
+        use_cache,
+        pbar,
       )
       if export_geojson:
         write_geojson([frames], output_dir, True, verbose)
     
     print(f'{len(frames)} frames saved to {output_dir}!')
+
+  if pbar is not None:
+    pbar.close()
 
   return img_paths
 
