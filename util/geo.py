@@ -349,6 +349,8 @@ def convert_to_geojson_poly(feature, width = DEFAULT_WIDTH):
     return geojson_point_to_poly(geom, width)
   elif t == 'Polygon' or t == 'MultiPolygon':
     return chunk_by_area(feature)
+  elif t == 'GeometryCollection':
+    return [convert_to_geojson_poly(p) for p in geom.get('geometries', [])]
   else:
     raise Exception(f'Unsupported type: {t}')
 
