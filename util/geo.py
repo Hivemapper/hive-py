@@ -349,6 +349,14 @@ def convert_to_geojson_poly(feature, width = DEFAULT_WIDTH):
     return geojson_point_to_poly(geom, width)
   elif t == 'Polygon' or t == 'MultiPolygon':
     return chunk_by_area(feature)
+  elif t == 'GeometryCollection':
+    polys = [convert_to_geojson_poly(p, width) for p in geom.get('geometries', [])]
+    polys = flat_list(polys)
+    spolys = [shapely.from_geojson(json.dumps(p)) for p in polys]
+    mpoly = unary_union(spolys)
+    if not mpoly.is_valid:
+      mpoly = make_valid(mpoly)
+    return convert_to_geojson_poly(json.loads(shapely.to_geojson(mpoly)), width)
   else:
     raise Exception(f'Unsupported type: {t}')
 
