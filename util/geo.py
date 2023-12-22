@@ -354,6 +354,8 @@ def convert_to_geojson_poly(feature, width = DEFAULT_WIDTH):
     polys = flat_list(polys)
     spolys = [shapely.from_geojson(json.dumps(p)) for p in polys]
     mpoly = unary_union(spolys)
+    if not mpoly.is_valid:
+      mpoly = make_valid(mpoly)
     return convert_to_geojson_poly(json.loads(shapely.to_geojson(mpoly)), width)
   else:
     raise Exception(f'Unsupported type: {t}')
