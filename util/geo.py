@@ -18,6 +18,7 @@ from tqdm import tqdm
 
 AREA_LIMIT = 1000000
 MAX_MULTIPOLYGON_CARDINALITY = 8
+MIN_SUBTRAHEND_AREA = 500 * 25 # ~1/2 km of 25m width road
 DEFAULT_WIDTH = 25
 MERCATOR_TO_WGS = Transformer.from_crs("EPSG:3857", "EPSG:4326", always_xy=True)
 WGS_TO_MERCATOR = Transformer.from_crs("EPSG:4326", "EPSG:3857", always_xy=True)
@@ -337,7 +338,7 @@ def convert_to_geojson_poly(feature, width = DEFAULT_WIDTH):
         d = s.difference(x)
         sp = complex_split(d, x)
         sp = shapely.segmentize(sp, max_segment_length=float(DEFAULT_WIDTH) / 20000000.0)
-        ls = [json.loads(shapely.to_geojson(g)) for g in sp.geoms]
+        ls = [json.loads(shapely.to_geojson(g.simplify(0.05))) for g in sp.geoms]
         polys = [geojson_linestring_to_poly(l, width) for l in ls]
         spolys = [shapely.from_geojson(json.dumps(p)) for p in polys]
         mpoly = unary_union(spolys)
@@ -515,6 +516,7 @@ def subtract_geojson(
   minuend_features = [convert_to_geojson_poly(f) for f in minuend_features]
   minuend_features = [feature for feature in minuend_features if feature is not None]
   minuend_features = flat_list(minuend_features)
+  subtrahend_features = [f for f in subtrahend_features if area(f) >= MIN_SUBTRAHEND_AREA]
   subtrahend_features = [convert_to_geojson_poly(f) for f in subtrahend_features]
   subtrahend_features = [feature for feature in subtrahend_features if feature is not None]
   subtrahend_features = flat_list(subtrahend_features)
@@ -527,6 +529,9 @@ def subtract_geojson(
   delta = shapely.difference(
     union_features(minuend_features),
     union_features(subtrahend_features))
+
+  if not delta.is_valid:
+    delta = make_valid(delta)
 
   if delta.type == 'MultiPolygon':
     delta = delta.geoms

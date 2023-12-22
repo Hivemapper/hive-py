@@ -32,7 +32,7 @@ IMAGERY_API_URL = 'https://hivemapper.com/api/developer/imagery/poly'
 LATEST_IMAGERY_API_URL = 'https://hivemapper.com/api/developer/latest/poly'
 RENEW_ASSET_URL = 'https://hivemapper.com/api/developer/renew/';
 MAX_API_THREADS = 8
-MAX_AREA = 1000 * 1000 # 1km^2
+MAX_AREA = 1000 * 1000 * 4 # 4km^2
 STATUS_FORCELIST = [429, 500, 502, 503, 504]
 VALID_POST_PROCESSING_OPTS = ['clahe-smart-clip']
 
@@ -824,8 +824,7 @@ def transform_input(
     geojson_file2 = None
 
     if use_cache:
-      loc += '_'.join(skips).replace('/','_').replace('\\', '_')
-      print(loc)
+      loc += '2' + '_'.join(skips).replace('/','_').replace('\\', '_')
       if os.path.isfile(loc):
         with open(loc, 'r') as f:
           geojson_file = f.read()
