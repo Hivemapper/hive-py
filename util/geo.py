@@ -11,6 +11,7 @@ from area import area
 from collections import Counter
 from geographiclib.geodesic import Geodesic
 from pyproj import Transformer
+from shapely import affinity
 from shapely.geometry import box, Polygon, LineString, MultiPolygon, GeometryCollection, Point, MultiPoint
 from shapely.ops import split, snap, unary_union
 from shapely.validation import make_valid
@@ -499,7 +500,8 @@ def union_features(features):
 def subtract_geojson(
   minuend_in,
   subtrahend_in,
-  delta_out, width=DEFAULT_WIDTH,
+  delta_out,
+  width=DEFAULT_WIDTH,
   verbose=False,
 ):
   minuend_features = []
@@ -513,12 +515,12 @@ def subtract_geojson(
     fc = json.load(f)
     subtrahend_features += fc.get('features', [fc])
 
-  minuend_features = [convert_to_geojson_poly(f) for f in minuend_features]
+  minuend_features = [convert_to_geojson_poly(f, width) for f in minuend_features]
   minuend_features = [feature for feature in minuend_features if feature is not None]
   minuend_features = flat_list(minuend_features)
-  subtrahend_features = [f for f in subtrahend_features if area(f) >= MIN_SUBTRAHEND_AREA]
-  subtrahend_features = [convert_to_geojson_poly(f) for f in subtrahend_features]
+  subtrahend_features = [convert_to_geojson_poly(f, width * 1.25) for f in subtrahend_features]
   subtrahend_features = [feature for feature in subtrahend_features if feature is not None]
+  subtrahend_features = [f for f in subtrahend_features if area(f) >= MIN_SUBTRAHEND_AREA]
   subtrahend_features = flat_list(subtrahend_features)
 
   union_each_feature_inplace(minuend_features)
