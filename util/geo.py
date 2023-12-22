@@ -350,15 +350,8 @@ def convert_to_geojson_poly(feature, width = DEFAULT_WIDTH):
   elif t == 'Polygon' or t == 'MultiPolygon':
     return chunk_by_area(feature)
   elif t == 'GeometryCollection':
-    polys = []
-    for p in geom.get('geometries', []):
-      try:
-        polys.append(convert_to_geojson_poly(p, width))
-      except Exception as e:
-        print(e)
-        import ipdb
-        ipdb.set_trace()
-    # polys = [convert_to_geojson_poly(p) for p in geom.get('geometries', [])]
+    polys = [convert_to_geojson_poly(p) for p in geom.get('geometries', [])]
+    polys = flat_list(polys)
     spolys = [shapely.from_geojson(json.dumps(p)) for p in polys]
     mpoly = unary_union(spolys)
     return json.loads(shapely.to_geojson(mpoly))
