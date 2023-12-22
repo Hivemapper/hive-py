@@ -89,6 +89,12 @@ def post_cached(url, data, headers, verbose=True, use_cache=True, pbar=None):
         return []
       else:
         raise e
+    except requests.exceptions.RetryError as e:
+      if verbose:
+        print('Encountered a server error, skipping:');
+        print(e)
+      return []
+
     resp = r.json()
     frames = resp.get('frames', [])
 
