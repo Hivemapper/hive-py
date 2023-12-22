@@ -825,7 +825,7 @@ def transform_input(
           geojson_file = f.read()
         if verbose:
           print(f'Using cached subtracted geometry: {geojson_file}')
-          return geojson_file
+        return geojson_file
 
     for skip_f in skips:
       geojson_file2 = geojson_file.replace('.json', '_delta.json')
