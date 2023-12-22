@@ -17,7 +17,7 @@ from shapely.ops import split, snap, unary_union
 from shapely.validation import make_valid
 from tqdm import tqdm
 
-AREA_LIMIT = 1000000
+AREA_LIMIT = 4000000
 MAX_MULTIPOLYGON_CARDINALITY = 8
 MIN_SUBTRAHEND_AREA = 500 * 25 # ~1/2 km of 25m width road
 DEFAULT_WIDTH = 25
