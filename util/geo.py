@@ -539,6 +539,10 @@ def subtract_geojson(
   else:
     delta = to_shapely(minuend_features)
 
+  for i, p in enumerate(delta):
+    if not p.is_valid:
+      delta[i] = make_valid(p)
+
   delta = unary_union(delta)
   if not delta.is_valid:
     delta = make_valid(delta)
