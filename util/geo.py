@@ -330,7 +330,6 @@ def find_self_intersection(line):
 def convert_to_geojson_poly(feature, width = DEFAULT_WIDTH):
   geom = feature.get('geometry', feature)
   t = geom['type']
-
   if t == 'LineString':
     try:
       s = shapely.from_geojson(json.dumps(geom))
@@ -338,8 +337,7 @@ def convert_to_geojson_poly(feature, width = DEFAULT_WIDTH):
         x = find_self_intersection(s)
         d = s.difference(x)
         sp = complex_split(d, x)
-        sp = shapely.segmentize(sp, max_segment_length=float(DEFAULT_WIDTH) / 20000000.0)
-        ls = [json.loads(shapely.to_geojson(g.simplify(0.05))) for g in sp.geoms]
+        ls = [json.loads(shapely.to_geojson(g)) for g in sp.geoms]
         polys = [geojson_linestring_to_poly(l, width) for l in ls]
         spolys = [shapely.from_geojson(json.dumps(p)) for p in polys]
         mpoly = unary_union(spolys)
@@ -347,6 +345,8 @@ def convert_to_geojson_poly(feature, width = DEFAULT_WIDTH):
     except:
       return None
     return geojson_linestring_to_poly(geom, width)
+    # s = shapely.from_geojson(json.dumps(gj))
+    # return json.loads(shapely.to_geojson(unary_union(s)))
   elif t == 'Point':
     return geojson_point_to_poly(geom, width)
   elif t == 'Polygon' or t == 'MultiPolygon':
@@ -382,13 +382,15 @@ def transform_shapefile_to_geojson_polygons(file_path, out_path = None, width = 
     polygons = [convert_to_geojson_poly(f, width) for f in features]
 
   polygons = [polygon for polygon in polygons if polygon is not None]
-  new_polygons = []
-  for maybe_polys in polygons:
-    if type(maybe_polys) is list:
-      for poly in maybe_polys:
-          new_polygons.append(poly)
-    else:
-      new_polygons.append(maybe_polys)
+  polygons = flat_list(polygons)
+  polygons = [shapely.from_geojson(json.dumps(f)) for f in polygons]
+  polygons = unary_union(polygons)
+  if not polygons.is_valid:
+    polygons = make_valid(polygons)
+  polygons = json.loads(shapely.to_geojson(polygons))
+  polygons = [convert_to_geojson_poly(polygons, width)]
+  polygons = [p for p in polygons if p is not None]
+  polygons = flat_list(polygons)
 
   if out_path:
     if verbose:
