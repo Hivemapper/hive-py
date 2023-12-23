@@ -384,6 +384,9 @@ def transform_shapefile_to_geojson_polygons(file_path, out_path = None, width = 
   polygons = [polygon for polygon in polygons if polygon is not None]
   polygons = flat_list(polygons)
   polygons = [shapely.from_geojson(json.dumps(f)) for f in polygons]
+  for i, p in enumerate(polygons):
+    if not p.is_valid:
+      polygons[i] = make_valid(p)
   polygons = unary_union(polygons)
   if not polygons.is_valid:
     polygons = make_valid(polygons)
