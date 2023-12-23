@@ -59,6 +59,9 @@ def clear_cache(verbose = True):
   shutil.rmtree(CACHE_DIR)
 
 def post_cached(url, data, headers, verbose=True, use_cache=True, pbar=None):
+  if verbose:
+    print(url)
+
   loc = None
   if use_cache:
     str_data = json.dumps({ 'url': url, 'data': data }).encode('utf-8')
@@ -393,8 +396,6 @@ def query_latest_imagery(
     url = LATEST_IMAGERY_API_URL
     if min_day:
       url += f'?min_week={min_day}'
-    if verbose:
-      print(url)
 
     future = executor.submit(post_cached, url, data, headers, verbose, use_cache, pbar)
     futures.append(future)
