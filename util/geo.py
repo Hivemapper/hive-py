@@ -399,10 +399,10 @@ def transform_shapefile_to_geojson_polygons(file_path, out_path = None, width = 
     with open(out_path, 'w') as f:
       json.dump({
         'type': 'FeatureCollection',
-        'features': new_polygons,
+        'features': polygons,
         }, f)
 
-  return new_polygons
+  return polygons
 
 def transform_csv_to_geojson_polygons(
   file_path,
