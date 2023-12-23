@@ -179,12 +179,21 @@ def download_file(
   verbose=True,
   overwrite=False,
   pbar=None,
-  is_retry=False
+  is_retry=False,
 ):
   if not overwrite and os.path.isfile(local_path):
     if verbose:
       print(f'{local_path} exists, skipping download...')
     return local_path
+
+  k = url.split('.com/')[1].split('?')[0]
+  loc = None
+  if not overwrite:
+    loc = os.path.join(CACHE_DIR, k.replace('/', '_'))
+    if os.path.isfile(loc):
+      if pbar:
+        pbar.update(1)
+      return
 
   os.makedirs(os.path.dirname(local_path), exist_ok=True)
   clean = url.split('?')[0].split('.com/')[1]
@@ -218,6 +227,10 @@ def download_file(
 
     if verbose:
       print(f'Downloaded {local_path}')
+
+    if not overwrite:
+      with open(loc, 'w') as f:
+        f.write(local_path)
 
   if encode_exif:
     update_exif(local_path, metadata, verbose)
@@ -289,7 +302,18 @@ def download_files(
   executor = concurrent.futures.ThreadPoolExecutor(max_workers=num_threads)
   futures = []
 
+  seen = set()
   for url, local_img_path, frame in zip(urls, local_img_paths, frames):
+    k = url.split('.com/')[1].split('?')[0]
+    seen_recently = k in seen
+
+    if seen_recently:
+      if pbar:
+        pbar.update(1)
+      continue
+    else:
+      seen.add(k)
+
     future = executor.submit(
       download_file,
       url,
