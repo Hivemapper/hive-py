@@ -1,6 +1,5 @@
 import argparse
 import concurrent.futures
-import geopy.distance
 import hashlib
 import json
 import os
@@ -12,20 +11,19 @@ from area import area
 from datetime import datetime, timedelta
 from exiftool import ExifToolHelper
 from itertools import repeat
-from geographiclib.geodesic import Geodesic
 from requests.adapters import HTTPAdapter, Retry
 from tqdm import tqdm
 from urllib.parse import quote
-from util import geo
+from util import geo, stitching
 from imagery.processing import clahe_smart_clip
 
 BATCH_SIZE = 10000
 CACHE_DIR = '.hivepy_cache'
 DEFAULT_BACKOFF = 1.0
 DEFAULT_RETRIES = 10
-DEFAULT_STITCH_MAX_DISTANCE = 20
-DEFAULT_STITCH_MAX_LAG = 300
-DEFAULT_STITCH_MAX_ANGLE = 30
+DEFAULT_STITCH_MAX_DISTANCE = 30
+DEFAULT_STITCH_MAX_LAG = 360
+DEFAULT_STITCH_MAX_ANGLE = 100
 DEFAULT_THREADS = 20
 DEFAULT_WIDTH = 25
 IMAGERY_API_URL = 'https://hivemapper.com/api/developer/imagery/poly'
@@ -511,134 +509,6 @@ def frame_within_day_bounds(frame, start_day, end_day):
   d = datetime.fromisoformat(frame.get('timestamp').split('.')[0])
   return d >= start_day and d <= end_day + timedelta(days=1)
 
-def json_iso_str_to_date(s):
-  return datetime.fromisoformat(s.replace('Z', ''))
-
-def boundaries_intersect(a, b):
-  a0 = json_iso_str_to_date(a[0].get('timestamp'))
-  a1 = json_iso_str_to_date(a[-1].get('timestamp'))
-  b0 = json_iso_str_to_date(b[0].get('timestamp'))
-  b1 = json_iso_str_to_date(b[-1].get('timestamp'))
-
-  latest_start = max(a0, b0)
-  earliest_end = min(a1, b1)
-  return latest_start < earliest_end  
-
-def stitch(
-  frames,
-  max_dist = DEFAULT_STITCH_MAX_DISTANCE,
-  max_lag = DEFAULT_STITCH_MAX_LAG,
-  max_azimuth_delta = DEFAULT_STITCH_MAX_ANGLE,
-  verbose = False
-):
-  if verbose:
-    print(f'Stitching {len(frames)} frames...')
-  by_sequence = {}
-  for frame in frames:
-    sequence = frame.get('sequence')
-    by_sequence.setdefault(sequence, [])
-    by_sequence[sequence].append(frame)
-
-  seqs = []
-  skip_stitching = []
-  for seq in by_sequence.values():
-    if len(seq) > 1:
-      seqs.append(sorted(seq, key=lambda f: f.get('idx')))
-    else:
-      skip_stitching.append([seq])
-  seqs = sorted(seqs, key=lambda s: s[0].get('timestamp'))
-
-  colls = [[]]
-  if seqs:
-    colls = [[seqs.pop(0)]]
-
-  if len(frames) == 0:
-    return colls
-
-  cur_coll = colls[-1]
-  remaining = []
-
-  while seqs:
-    seq = seqs.pop(0)
-
-    if boundaries_intersect(cur_coll[-1], seq):
-      remaining.append(seq)
-
-      if len(seqs) == 0:
-        colls.append([remaining.pop(0)])
-        cur_coll = colls[-1]
-        seqs = remaining
-        remaining = []
-
-      continue
-
-    t0 = json_iso_str_to_date(cur_coll[-1][-1].get('timestamp'))
-    t1 = json_iso_str_to_date(seq[0].get('timestamp'))
-
-    if (t1 - t0).seconds > max_lag:
-      remaining.append(seq)
-  
-      if len(seqs) == 0:
-        colls.append([remaining.pop(0)])
-        cur_coll = colls[-1]
-        seqs = remaining
-        remaining = []
-
-      continue
-
-    lat_a0 = cur_coll[-1][-2].get('position').get('lat')
-    lon_a0 = cur_coll[-1][-2].get('position').get('lon')
-    lat_a1 = cur_coll[-1][-1].get('position').get('lat')
-    lon_a1 = cur_coll[-1][-1].get('position').get('lon')
-    lat_b0 = seq[0].get('position').get('lat')
-    lon_b0 = seq[0].get('position').get('lon')
-    lat_b1 = seq[1].get('position').get('lat')
-    lon_b1 = seq[1].get('position').get('lon')
-
-    d = geopy.distance.distance((lat_a1, lon_a1), (lat_b0, lon_b0)).meters
-
-    if d > max_dist:
-      remaining.append(seq)
-
-      if len(seqs) == 0:
-        colls.append([remaining.pop(0)])
-        cur_coll = colls[-1]
-        seqs = remaining
-        remaining = []
-
-      continue
-
-    azi_a = Geodesic.WGS84.Inverse(lat_a0, lon_a0, lat_a1, lon_a1).get('azi2')
-    azi_b = Geodesic.WGS84.Inverse(lat_b0, lon_b0, lat_b1, lon_b1).get('azi2')
-    delta_azi = geo.abs_angular_delta(azi_a, azi_b)
-
-    if delta_azi > max_azimuth_delta:
-      remaining.append(seq)
-
-      if len(seqs) == 0:
-        colls.append([remaining.pop(0)])
-        cur_coll = colls[-1]
-        seqs = remaining
-        remaining = []
-
-      continue      
-
-    cur_coll.append(seq)
-
-    if len(seqs) == 0 and remaining:
-      colls.append([remaining.pop(0)])
-      cur_coll = colls[-1]
-      seqs = remaining
-      remaining = []
-
-  stitched = [[f for seq in coll for f in seq] for coll in colls]
-  skipped = [[ f for seq in coll for f in seq] for coll in skip_stitching]
-  if verbose:
-    print(f'Stitched {len(stitched)} paths!')
-    print(f'Skipped {len(skipped)} paths.')
-
-  return stitched + skipped
-
 def frames_to_linestring(frames, ident):
   return {
     "type": "Feature",
@@ -733,7 +603,7 @@ def _query(
       pbar = tqdm(total=len(frames))
 
     if should_stitch:
-      stitched = stitch(frames, max_dist, max_lag, max_angle, verbose)
+      stitched = stitching.stitch(frames, max_dist, max_lag, max_angle, verbose)
       for i, frame_set in enumerate(stitched):
         folder = f'{str(uuid.uuid4())}-{str(i)}'
         local_dir = os.path.join(output_dir, folder)

@@ -1,9 +1,13 @@
 area==1.1.1
 geographiclib==2.0
 geopy==2.3.0
+numpy
 pyexiftool==0.5.6
 pyproj==3.6.1
 pyshp==2.3.1
 requests==2.31.0
+scipy==1.10.1
 shapely==2.0.1
 tqdm==4.66.1
+timezonefinder==6.2.0
+
