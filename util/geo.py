@@ -19,7 +19,7 @@ from tqdm import tqdm
 
 AREA_LIMIT = 4000000
 MAX_MULTIPOLYGON_CARDINALITY = 8
-MIN_SUBTRAHEND_AREA = 500 * 25 # ~1/2 km of 25m width road
+MIN_SUBTRAHEND_AREA = 1250 # ~50m of 25m width road
 DEFAULT_WIDTH = 25
 MERCATOR_TO_WGS = Transformer.from_crs("EPSG:3857", "EPSG:4326", always_xy=True)
 WGS_TO_MERCATOR = Transformer.from_crs("EPSG:4326", "EPSG:3857", always_xy=True)
