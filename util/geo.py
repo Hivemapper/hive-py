@@ -341,13 +341,13 @@ def convert_to_geojson_poly(feature, width = DEFAULT_WIDTH):
         ls = [json.loads(shapely.to_geojson(g)) for g in sp.geoms]
         polys = [geojson_linestring_to_poly(l, width) for l in ls]
         spolys = [shapely.from_geojson(json.dumps(p)) for p in polys]
-        mpoly = unary_union(spolys)
+        mpoly = unary_union(spolys).simplify(0.1)
         return json.loads(shapely.to_geojson(mpoly))
     except:
       return None
     gj = geojson_linestring_to_poly(geom, width)
     s = shapely.from_geojson(json.dumps(gj))
-    return json.loads(shapely.to_geojson(unary_union(s)))
+    return json.loads(shapely.to_geojson(unary_union(s).simplify(0.1)))
   elif t == 'Point':
     return geojson_point_to_poly(geom, width)
   elif t == 'Polygon' or t == 'MultiPolygon':
