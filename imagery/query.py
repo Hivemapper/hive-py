@@ -345,9 +345,6 @@ def query_imagery(
 
     for week in weeks:
       url = f'{IMAGERY_API_URL}?week={week}'
-      if verbose:
-        print(url)
-
       future = executor.submit(post_cached, url, data, headers, verbose, use_cache, pbar)
       futures.append(future)
 
