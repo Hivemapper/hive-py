@@ -19,7 +19,7 @@ from tqdm import tqdm
 
 AREA_LIMIT = 4000000
 MAX_MULTIPOLYGON_CARDINALITY = 8
-MIN_SUBTRAHEND_AREA = 1250 # ~50m of 25m width road
+MIN_SUBTRAHEND_AREA = 2500 # ~100m of 25m width road
 DEFAULT_WIDTH = 25
 MERCATOR_TO_WGS = Transformer.from_crs("EPSG:3857", "EPSG:4326", always_xy=True)
 WGS_TO_MERCATOR = Transformer.from_crs("EPSG:4326", "EPSG:3857", always_xy=True)
@@ -493,6 +493,9 @@ def union_each_feature_inplace(features):
     except shapely.errors.GEOSException as e:
       features[i] = None
 
+def to_shapely(features):
+  return [shapely.from_geojson(json.dumps(f)) for f in features]
+
 def union_features(features):
   try:
     return shapely.unary_union(features)
@@ -521,30 +524,29 @@ def subtract_geojson(
   minuend_features = [feature for feature in minuend_features if feature is not None]
   minuend_features = flat_list(minuend_features)
   subtrahend_features = [convert_to_geojson_poly(f, width * 1.25) for f in subtrahend_features]
-  subtrahend_features = [feature for feature in subtrahend_features if feature is not None]
+  subtrahend_features = [feature.get('geometry', feature) for feature in subtrahend_features if feature is not None]
   subtrahend_features = [f for f in subtrahend_features if area(f) >= MIN_SUBTRAHEND_AREA]
   subtrahend_features = flat_list(subtrahend_features)
 
-  union_each_feature_inplace(minuend_features)
-  minuend_features = [f for f in minuend_features if f is not None]
-  union_each_feature_inplace(subtrahend_features)
-  subtrahend_features = [f for f in subtrahend_features if f is not None]
+  delta = None
+  if subtrahend_features:
+    delta = shapely.difference(
+      union_features(to_shapely(minuend_features)),
+      union_features(to_shapely(subtrahend_features)))
+  else:
+    delta = to_shapely(minuend_features)
 
-  delta = shapely.difference(
-    union_features(minuend_features),
-    union_features(subtrahend_features))
-
+  delta = unary_union(delta)
   if not delta.is_valid:
     delta = make_valid(delta)
 
-  if delta.type == 'MultiPolygon':
-    delta = delta.geoms
-  else:
-    delta = [delta]
-  delta = [json.loads(shapely.to_geojson(g)) for g in delta]
+  delta = json.loads(shapely.to_geojson(delta))
+  delta = [convert_to_geojson_poly(delta, width)]
+  delta = [p for p in delta if p is not None]
+  delta = flat_list(delta)
   delta = [{
     "type": "Feature",
-    "geometry": g,
+    "geometry": g.get('feature', g).get('geometry', g),
     "properties": {},
   } for g in delta]
 
