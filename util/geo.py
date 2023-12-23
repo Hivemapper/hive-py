@@ -368,8 +368,10 @@ def transform_shapefile_to_geojson_polygons(file_path, out_path = None, width = 
   if verbose:
     print(f'reading {file_path} as geojson...')
   with shapefile.Reader(file_path) as shp:
-    merged = unary_union(shp)
-    geojson = merged.__geo_interface__
+    geojson = shp.__geo_interface__
+    x = shapely.from_geojson(json.dumps(geojson))
+    x = unary_union(x)
+    geojson = json.loads(shapely.to_geojson(x))
 
   features = geojson.get('features')
   if verbose:
