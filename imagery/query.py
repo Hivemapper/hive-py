@@ -682,7 +682,7 @@ def transform_input(
   geojson_file = None
   loc = None
   if use_cache:
-    loc = f'transformed_2_{file_path}'
+    loc = f'transformed_3_{file_path}'
     loc = loc.replace('/', '_')
     loc = loc.replace('\\', '_')
     loc = os.path.join(CACHE_DIR, loc)
@@ -718,7 +718,7 @@ def transform_input(
     geojson_file2 = None
 
     if use_cache:
-      loc += '3' + '_'.join(skips).replace('/','_').replace('\\', '_')
+      loc += '4' + '_'.join(skips).replace('/','_').replace('\\', '_')
       if os.path.isfile(loc):
         with open(loc, 'r') as f:
           geojson_file = f.read()
@@ -727,7 +727,7 @@ def transform_input(
         return geojson_file
 
     for skip_f in skips:
-      geojson_file2 = geojson_file.replace('.json', '_delta.json')
+      geojson_file2 = geojson_file.replace('json', 'delta_json')
       geo.subtract_geojson(geojson_file, skip_f, geojson_file2, width, verbose)
       geojson_file = geojson_file2
 
