@@ -718,7 +718,7 @@ def transform_input(
     geojson_file2 = None
 
     if use_cache:
-      loc += '4' + '_'.join(skips).replace('/','_').replace('\\', '_')
+      loc += '4' + '_'.join(['s' for s in skips]).replace('/','_').replace('\\', '_')
       if os.path.isfile(loc):
         with open(loc, 'r') as f:
           geojson_file = f.read()
