@@ -59,8 +59,8 @@ def clear_cache(verbose = True):
   shutil.rmtree(CACHE_DIR)
 
 def post_cached(url, data, headers, verbose=True, use_cache=True, pbar=None):
-  if verbose:
-    print(url)
+  # if verbose:
+  #   print(url)
 
   loc = None
   if use_cache:
