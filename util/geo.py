@@ -382,12 +382,15 @@ def transform_shapefile_to_geojson_polygons(file_path, out_path = None, width = 
     polygons = [convert_to_geojson_poly(f, width) for f in features]
 
   polygons = [polygon for polygon in polygons if polygon is not None]
-  new_polygons = flat_list(polygons)
-  new_polygons = [shapely.from_geojson(json.dumps(f)) for f in new_polygons]
-  new_polygons = json.loads(shapely.to_geojson(unary_union(new_polygons)))
-  new_polygons = [convert_to_geojson_poly(new_polygons, width)]
-  new_polygons = [p for p in new_polygons if p is not None]
-  new_polygons = flat_list(new_polygons)
+  polygons = flat_list(polygons)
+  polygons = [shapely.from_geojson(json.dumps(f)) for f in polygons]
+  polygons = unary_union(polygons)
+  if not polygons.is_valid:
+    polygons = make_valid(polygons)
+  polygons = json.loads(shapely.to_geojson(polygons))
+  polygons = [convert_to_geojson_poly(polygons, width)]
+  polygons = [p for p in polygons if p is not None]
+  polygons = flat_list(polygons)
 
   if out_path:
     if verbose:

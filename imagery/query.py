@@ -59,9 +59,6 @@ def clear_cache(verbose = True):
   shutil.rmtree(CACHE_DIR)
 
 def post_cached(url, data, headers, verbose=True, use_cache=True, pbar=None):
-  # if verbose:
-  #   print(url)
-
   loc = None
   if use_cache:
     str_data = json.dumps({ 'url': url, 'data': data }).encode('utf-8')
@@ -70,7 +67,6 @@ def post_cached(url, data, headers, verbose=True, use_cache=True, pbar=None):
 
     if os.path.isfile(loc):
       if verbose:
-        print('Using cached data...')
         if pbar is not None:
           pbar.update(1)
       with open(loc, 'r') as f:
