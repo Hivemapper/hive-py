@@ -302,18 +302,7 @@ def download_files(
   executor = concurrent.futures.ThreadPoolExecutor(max_workers=num_threads)
   futures = []
 
-  seen = set()
   for url, local_img_path, frame in zip(urls, local_img_paths, frames):
-    k = url.split('.com/')[1].split('?')[0]
-    seen_recently = k in seen
-
-    if seen_recently:
-      if pbar:
-        pbar.update(1)
-      continue
-    else:
-      seen.add(k)
-
     future = executor.submit(
       download_file,
       url,
@@ -607,9 +596,20 @@ def _query(
   use_cache=True,
 ):
   if latest:
-    frames = query_latest_frames(features, custom_ids, min_dates, output_dir, authorization, num_threads, verbose, use_cache)
+    frames_raw = query_latest_frames(features, custom_ids, min_dates, output_dir, authorization, num_threads, verbose, use_cache)
   else:
-    frames = query_frames(features, custom_ids, start_day, end_day, output_dir, authorization, num_threads, verbose, use_cache)
+    frames_raw = query_frames(features, custom_ids, start_day, end_day, output_dir, authorization, num_threads, verbose, use_cache)
+
+  frames = []
+  seen = set()
+  for frame in frames_raw:
+    url = frame.get('url')
+    k = url.split('.com/')[1].split('?')[0]
+    if k in seen:
+      continue
+    seen.add(k)
+    frames.append(frame)
+
   print(f'Found {len(frames)} images!')
 
   img_paths = []
