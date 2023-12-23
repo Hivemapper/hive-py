@@ -83,6 +83,8 @@ def post_cached(url, data, headers, verbose=True, use_cache=True, pbar=None):
         if verbose:
           print('Encountered a server error, skipping:');
           print(e)
+        if pbar:
+          pbar.update(1)
         return []
       else:
         raise e
@@ -90,6 +92,8 @@ def post_cached(url, data, headers, verbose=True, use_cache=True, pbar=None):
       if verbose:
         print('Encountered a server error, skipping:');
         print(e)
+      if pbar:
+        pbar.update(1)
       return []
 
     resp = r.json()
@@ -184,6 +188,8 @@ def download_file(
   if not overwrite and os.path.isfile(local_path):
     if verbose:
       print(f'{local_path} exists, skipping download...')
+    if pbar:
+      pbar.update(1)
     return local_path
 
   k = url.split('.com/')[1].split('?')[0]
