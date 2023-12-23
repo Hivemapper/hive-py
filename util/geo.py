@@ -337,11 +337,10 @@ def convert_to_geojson_poly(feature, width = DEFAULT_WIDTH):
         x = find_self_intersection(s)
         d = s.difference(x)
         sp = complex_split(d, x)
-        # sp = shapely.segmentize(sp, max_segment_length=width)
         ls = [json.loads(shapely.to_geojson(g)) for g in sp.geoms]
         polys = [geojson_linestring_to_poly(l, width) for l in ls]
         spolys = [shapely.from_geojson(json.dumps(p)) for p in polys]
-        # mpoly = unary_union(spolys).simplify(0.1)
+        mpoly = unary_union(spolys)
         return json.loads(shapely.to_geojson(mpoly))
     except:
       return None
@@ -369,7 +368,8 @@ def transform_shapefile_to_geojson_polygons(file_path, out_path = None, width = 
   if verbose:
     print(f'reading {file_path} as geojson...')
   with shapefile.Reader(file_path) as shp:
-    geojson = shp.__geo_interface__
+    merged = unary_union(shp)
+    geojson = merged.__geo_interface__
 
   features = geojson.get('features')
   if verbose:
