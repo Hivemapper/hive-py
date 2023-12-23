@@ -31,7 +31,7 @@ LATEST_IMAGERY_API_URL = 'https://hivemapper.com/api/developer/latest/poly'
 RENEW_ASSET_URL = 'https://hivemapper.com/api/developer/renew/';
 MAX_API_THREADS = 8
 MAX_AREA = 1000 * 1000 * 4 # 4km^2
-STATUS_FORCELIST = [429, 500, 502, 503, 504]
+STATUS_FORCELIST = [429, 502, 503, 504]
 VALID_POST_PROCESSING_OPTS = ['clahe-smart-clip']
 
 request_session = requests.Session()
