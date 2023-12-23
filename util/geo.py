@@ -369,9 +369,6 @@ def transform_shapefile_to_geojson_polygons(file_path, out_path = None, width = 
     print(f'reading {file_path} as geojson...')
   with shapefile.Reader(file_path) as shp:
     geojson = shp.__geo_interface__
-    x = shapely.from_geojson(json.dumps(geojson))
-    x = unary_union(x)
-    geojson = json.loads(shapely.to_geojson(x))
 
   features = geojson.get('features')
   if verbose:
@@ -385,13 +382,12 @@ def transform_shapefile_to_geojson_polygons(file_path, out_path = None, width = 
     polygons = [convert_to_geojson_poly(f, width) for f in features]
 
   polygons = [polygon for polygon in polygons if polygon is not None]
-  new_polygons = []
-  for maybe_polys in polygons:
-    if type(maybe_polys) is list:
-      for poly in maybe_polys:
-          new_polygons.append(poly)
-    else:
-      new_polygons.append(maybe_polys)
+  new_polygons = flat_list(polygons)
+  new_polygons = [shapely.from_geojson(json.dumps(f)) for f in new_polygons]
+  new_polygons = json.loads(shapely.to_geojson(unary_union(new_polygons)))
+  new_polygons = [convert_to_geojson_poly(new_polygons, width)]
+  new_polygons = [p for p in new_polygons if p is not None]
+  new_polygons = flat_list(new_polygons)
 
   if out_path:
     if verbose:
