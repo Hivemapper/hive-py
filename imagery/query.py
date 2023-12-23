@@ -179,12 +179,21 @@ def download_file(
   verbose=True,
   overwrite=False,
   pbar=None,
-  is_retry=False
+  is_retry=False,
 ):
   if not overwrite and os.path.isfile(local_path):
     if verbose:
       print(f'{local_path} exists, skipping download...')
     return local_path
+
+  k = url.split('.com/')[1].split('?')[0]
+  loc = None
+  if not overwrite:
+    loc = os.path.join(CACHE_DIR, k.replace('/', '_'))
+    if os.path.isfile(loc):
+      if pbar:
+        pbar.update(1)
+      return
 
   os.makedirs(os.path.dirname(local_path), exist_ok=True)
   clean = url.split('?')[0].split('.com/')[1]
@@ -218,6 +227,10 @@ def download_file(
 
     if verbose:
       print(f'Downloaded {local_path}')
+
+    if not overwrite:
+      with open(loc, 'w') as f:
+        f.write(local_path)
 
   if encode_exif:
     update_exif(local_path, metadata, verbose)
@@ -583,9 +596,20 @@ def _query(
   use_cache=True,
 ):
   if latest:
-    frames = query_latest_frames(features, custom_ids, min_dates, output_dir, authorization, num_threads, verbose, use_cache)
+    frames_raw = query_latest_frames(features, custom_ids, min_dates, output_dir, authorization, num_threads, verbose, use_cache)
   else:
-    frames = query_frames(features, custom_ids, start_day, end_day, output_dir, authorization, num_threads, verbose, use_cache)
+    frames_raw = query_frames(features, custom_ids, start_day, end_day, output_dir, authorization, num_threads, verbose, use_cache)
+
+  frames = []
+  seen = set()
+  for frame in frames_raw:
+    url = frame.get('url')
+    k = url.split('.com/')[1].split('?')[0]
+    if k in seen:
+      continue
+    seen.add(k)
+    frames.append(frame)
+
   print(f'Found {len(frames)} images!')
 
   img_paths = []
