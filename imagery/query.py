@@ -570,6 +570,16 @@ def write_geojson(frame_lists, output_dir, points = False, verbose = False):
     "features": features,
   }
   geojson_path = os.path.join(output_dir, 'frames.geojson')
+
+  if os.path.isfile(geojson_path):
+    try:
+      with open(geojson_path, 'r') as f:
+        fc = json.load(f)
+        features = fc.get('features', [])
+        geojson['features'] += features
+    except Exception as e:
+      print(e)
+
   with open(geojson_path, 'w') as f:
     json.dump(geojson, f)
 
