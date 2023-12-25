@@ -539,7 +539,7 @@ def subtract_geojson(
   else:
     delta = to_shapely(minuend_features)
 
-  if delta.type == 'MultiPolygon':
+  if type(delta) != list:
     delta = [delta]
 
   for i, p in enumerate(delta):
