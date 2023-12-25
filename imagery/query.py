@@ -727,7 +727,7 @@ def transform_input(
         return geojson_file
 
     for skip_f in skips:
-      geojson_file2 = geojson_file.replace('json', 'delta_json')
+      geojson_file2 = geojson_file.replace('json', 'd_')
       geo.subtract_geojson(geojson_file, skip_f, geojson_file2, width, verbose)
       geojson_file = geojson_file2
 
