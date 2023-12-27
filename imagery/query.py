@@ -58,7 +58,15 @@ def clear_cache(verbose = True):
     print(f'Deleting cache dir: {CACHE_DIR}')
   shutil.rmtree(CACHE_DIR)
 
-def post_cached(url, data, headers, verbose=True, use_cache=True, pbar=None):
+def post_cached(
+  url,
+  data,
+  headers,
+  verbose=True,
+  use_cache=True,
+  skip_cached_frames=False,
+  pbar=None,
+):
   loc = None
   if use_cache:
     str_data = json.dumps({ 'url': url, 'data': data }).encode('utf-8')
@@ -69,6 +77,10 @@ def post_cached(url, data, headers, verbose=True, use_cache=True, pbar=None):
       if verbose:
         if pbar is not None:
           pbar.update(1)
+
+      if skip_cached_frames:
+        return []
+
       with open(loc, 'r') as f:
         try:
           return json.load(f)
@@ -339,6 +351,7 @@ def query_imagery(
   num_threads=DEFAULT_RETRIES,
   verbose=False,
   use_cache=True,
+  skip_cached_frames=False,
 ):
   headers = {
     "content-type": "application/json",
@@ -360,7 +373,16 @@ def query_imagery(
 
     for week in weeks:
       url = f'{IMAGERY_API_URL}?week={week}'
-      future = executor.submit(post_cached, url, data, headers, verbose, use_cache, pbar)
+      future = executor.submit(
+        post_cached,
+        url,
+        data,
+        headers,
+        verbose,
+        use_cache,
+        skip_cached_frames,
+        pbar,
+      )
       futures.append(future)
 
   for future in concurrent.futures.as_completed(futures):
@@ -385,7 +407,8 @@ def query_latest_imagery(
   local_dir,
   num_threads=DEFAULT_THREADS,
   verbose=False,
-  use_cache=True
+  use_cache=True,
+  skip_cached_frames=False,
 ):
   headers = {
     "content-type": "application/json",
@@ -409,7 +432,16 @@ def query_latest_imagery(
     if min_day:
       url += f'?min_week={min_day}'
 
-    future = executor.submit(post_cached, url, data, headers, verbose, use_cache, pbar)
+    future = executor.submit(
+      post_cached,
+      url,
+      data,
+      headers,
+      verbose,
+      use_cache,
+      skip_cached_frames,
+      pbar,
+    )
     futures.append(future)
 
   for future in concurrent.futures.as_completed(futures):
@@ -435,7 +467,8 @@ def query_frames(
   authorization,
   num_threads = DEFAULT_THREADS,
   verbose = False,
-  use_cache = True
+  use_cache = True,
+  skip_cached_frames = False,
 ):
   assert(start_day <= end_day)
 
@@ -458,7 +491,8 @@ def query_frames(
     output_dir,
     num_threads,
     verbose,
-    use_cache
+    use_cache,
+    skip_cached_frames
   )
   filtered_frames = [frame for frame in frames if frame_within_day_bounds(frame, start_day, end_day)]
 
@@ -500,7 +534,8 @@ def query_latest_frames(
   authorization,
   num_threads = DEFAULT_THREADS,
   verbose = False,
-  use_cache = True
+  use_cache = True,
+  skip_cached_frames = False
 ):
   if verbose:
     print(f'Querying {len(features)} features for imagery across for latest...')
@@ -512,7 +547,8 @@ def query_latest_frames(
     output_dir,
     num_threads,
     verbose,
-    use_cache
+    use_cache,
+    skip_cached_frames
   )
 
   return frames
@@ -610,11 +646,33 @@ def _query(
   num_threads=DEFAULT_THREADS,
   verbose=False,
   use_cache=True,
+  skip_cached_frames=False,
 ):
   if latest:
-    frames_raw = query_latest_frames(features, custom_ids, min_dates, output_dir, authorization, num_threads, verbose, use_cache)
+    frames_raw = query_latest_frames(
+      features,
+      custom_ids,
+      min_dates,
+      output_dir,
+      authorization,
+      num_threads,
+      verbose,
+      use_cache,
+      skip_cached_frames,
+    )
   else:
-    frames_raw = query_frames(features, custom_ids, start_day, end_day, output_dir, authorization, num_threads, verbose, use_cache)
+    frames_raw = query_frames(
+      features,
+      custom_ids,
+      start_day,
+      end_day,
+      output_dir,
+      authorization,
+      num_threads,
+      verbose,
+      use_cache,
+      skip_cached_frames,
+    )
 
   frames = []
   seen = set()
@@ -769,6 +827,7 @@ def query(
   num_threads=DEFAULT_THREADS,
   verbose=False,
   use_cache=True,
+  skip_cached_frames=False,
   use_batches=False,
 ):
   geojson_file = transform_input(
@@ -808,6 +867,7 @@ def query(
       num_threads,
       verbose,
       use_cache,
+      skip_cached_frames,
     )
     return
 
@@ -881,6 +941,7 @@ if __name__ == '__main__':
   parser.add_argument('-v', '--verbose', action='store_true')
   parser.add_argument('-C', '--cache', action='store_true')
   parser.add_argument('-b', '--use_batches', action='store_true')
+  parser.add_argument('-N', '--skip_cached_frames', action='store_true')
   args = parser.parse_args()
 
   if args.cache:
@@ -912,6 +973,7 @@ if __name__ == '__main__':
     args.num_threads,
     args.verbose,
     args.cache,
+    args.skip_cached_frames,
     args.use_batches,
   )
 
