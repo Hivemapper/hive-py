@@ -18,7 +18,7 @@ pip install -r requirements.txt
 > python -m imagery.query
 usage: query.py [-h] -i INPUT_FILE [-s START_DAY] [-e END_DAY] [-L] [-x] [-d MAX_DIST] [-l MAX_LAG] [-z MAX_ANGLE] -o OUTPUT_DIR [-g] [-w WIDTH] [-M]
                 [-I CUSTOM_ID_FIELD] [-S CUSTOM_MIN_DATE_FIELD] [-k] [-E] [-K SKIP_GEO_FILE] [-P IMAGE_POST_PROCESSING] -a AUTHORIZATION [-c NUM_THREADS] [-v]
-                [-C] [-b]
+                [-C] [-b] [-N]
 
 options:
   -h, --help            show this help message and exit
@@ -45,6 +45,7 @@ options:
   -v, --verbose
   -C, --cache
   -b, --use_batches
+  -N, --skip_cached_frames
 ```
 
 ### Python API
