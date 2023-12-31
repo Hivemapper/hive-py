@@ -111,6 +111,8 @@ def katana(geometry, threshold, count=0):
         c = geometry.intersection(d)
         if not isinstance(c, GeometryCollection):
             c = [c]
+        else:
+            c = c.geoms
         for e in c:
             if isinstance(e, (Polygon, MultiPolygon)):
                 result.extend(katana(e, threshold, count+1))
