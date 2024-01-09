@@ -141,6 +141,31 @@ python -m account.info -ba <your encoded key string>
 python -m account.info -ta <your encoded key string>
 ```
 
+## Restitching
+```
+usage: stitching.py [-h] [-R RESTITCH] [-o OUT] [-d MAX_DIST] [-l MAX_LAG] [-z MAX_ANGLE] [-m MIN_SEQ_SIZE] [-v]
+
+options:
+  -h, --help            show this help message and exit
+  -R RESTITCH, --restitch RESTITCH
+  -o OUT, --out OUT
+  -d MAX_DIST, --max_dist MAX_DIST
+  -l MAX_LAG, --max_lag MAX_LAG
+  -z MAX_ANGLE, --max_angle MAX_ANGLE
+  -m MIN_SEQ_SIZE, --min_seq_size MIN_SEQ_SIZE
+  -v, --verbose
+```
+
+### Restitch a directory `out` (creates hard links to images)
+```
+python -m util.stitching -R out -o out2 -v
+```
+
+### Restitch a directory `out`, but only keep sequences >= 100m (creates hard links to images)
+```
+python -m util.stitching -R out -o out2 -v -m 100
+```
+
 ## Post Processing
 - Install ImageMagick >=7.0.0
 - Use Python >=3.7
