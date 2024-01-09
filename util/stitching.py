@@ -221,9 +221,10 @@ def read_seqs(root, manifest, verbose):
           manifest[sid]['loc'] = os.path.join(p, img)
 
 def traversal_gte(seq, min_seq_size):
-  total = 0
   if len(seq) < 2:
-    return total
+    return False
+
+  total = 0
 
   for i in range(1, len(seq)):
     cur = (seq[i]['position']['lat'], seq[i]['position']['lon'])
@@ -235,9 +236,9 @@ def traversal_gte(seq, min_seq_size):
     total += d
 
     if total >= min_seq_size:
-      break
+      return True
 
-  return total
+  return False
 
 def restitch(
   root,
