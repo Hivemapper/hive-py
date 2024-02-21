@@ -106,7 +106,13 @@ def main(image_files: list[str], max_corners: int = 100, num_random_checks: int 
         print("Less than 2 frames extracted. Skipping optical flow based camera mount classificatin.")
         print("FINISHED!")
 
-def list_jpg_files(directory):
+def list_jpg_files(directory: str):
+    """Reads a directory and returns a list of all jpg files in the directory.
+    Args:
+        directory (string): Path to the directory
+    Returns:
+        list: List of all jpg files in the directory
+    """
     jpg_files = []
     for filename in os.listdir(directory):
         if filename.endswith(".jpg"):
