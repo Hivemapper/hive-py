@@ -35,9 +35,6 @@ def main(image_files: list[str], max_corners: int, num_random_checks: int, thres
                         criteria=(cv2.TERM_CRITERIA_EPS | cv2.TERM_CRITERIA_COUNT,
                                 10, 0.03))
 
-        # Create some random colors
-        color = np.random.randint(0, 255, (max_corners, 3))
-
         # Check optical flow at random locations
         Dx = []
         Dy = []
@@ -96,16 +93,13 @@ def main(image_files: list[str], max_corners: int, num_random_checks: int, thres
         # Classify camera mount
         if (statistics.median(DxDyRatios) > threshold_dxdy_ratio):
             if (statistics.median(Dx) < 0.0):
-                print("Passenger side camera orientation")
+                print("Right side")
             else:
-                print("Driver side camera orientation")
+                print("Left side")
         else:
-            print("Forward or backward facing camera orientation")
-
-        print("FINISHED!")
+            print("Forward or backward")
     else:
-        print("Less than 5 frames. Skipping optical flow based camera mount classificatin.")
-        print("FINISHED!")
+        print("Less than 1 frames. Skipping optical flow based camera mount classification.")
 
 
 def list_image_files(directory: str, unzip=False):
@@ -131,9 +125,12 @@ def list_image_files(directory: str, unzip=False):
             zip_ref.extractall(os.path.dirname(directory))
         directory = os.path.splitext(directory)[0]  # Update directory to the extracted folder
     for filename in os.listdir(directory):
-        if filename.endswith(".jpg"):
+        if filename.endswith(".jpg") or filename.endswith(".jpeg"):
             image_files.append(os.path.join(directory, filename))
-    return sorted(image_files, key=lambda x: int(x.split('/')[-1].split('.')[0]))
+    try:
+        return sorted(image_files, key=lambda x: int(x.split('/')[-1].split('.')[0]))
+    except:
+        return sorted(image_files)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Script for camera orientation classification using optical flow.")
@@ -145,3 +142,4 @@ if __name__ == "__main__":
     args = parser.parse_args()
     
     main(list_image_files(args.image_files_directory, args.unzip), args.max_corners, args.num_random_checks, args.threshold_dxdy_ratio)
+    
