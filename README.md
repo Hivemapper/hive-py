@@ -230,7 +230,3 @@ By default, settings are naively configured to sacrifice aesthetics to improve u
 
 ![dark1](https://github.com/Hivemapper/hive-py/assets/3093002/8a2cd6cf-910a-4f2b-b680-3c1f003d33f7)
 ![clahe2](https://github.com/Hivemapper/hive-py/assets/3093002/8e46c7f4-8ff1-4f62-a2bb-d16fdd1a06c0)
-
-```
-
-```
