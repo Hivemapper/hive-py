@@ -7,7 +7,7 @@ import os
 import argparse
 
 
-def main(image_files: list[str], max_corners: int = 100, num_random_checks: int = 10, threshold_dxdy_ratio: float = 3.0):
+def main(image_files: list[str], max_corners: int, num_random_checks: int, threshold_dxdy_ratio: float):
     """ For camera orientation classification using optical flow.
     Args:
         image_files: list of image file paths
@@ -37,7 +37,7 @@ def main(image_files: list[str], max_corners: int = 100, num_random_checks: int 
         # Create some random colors
         color = np.random.randint(0, 255, (max_corners, 3))
 
-        # Check optical flow at random locations in video
+        # Check optical flow at random locations
         Dx = []
         Dy = []
 
@@ -77,10 +77,13 @@ def main(image_files: list[str], max_corners: int = 100, num_random_checks: int 
                 dx = dx + c-a
                 dy = dy + d-b
 
+            if (len(good_new) == 0):
+                print("No features found in frame " + str(rand_frame))
+                continue
             Dx.append(dx/len(good_new))
             Dy.append(dy/len(good_new))
 
-        # Do classification of video
+        # Do classification
         DxDyRatios = []
         for i in range(0, len(Dx)):
             DxDyRatios.append(abs(Dx[i]/Dy[i]))
@@ -94,13 +97,10 @@ def main(image_files: list[str], max_corners: int = 100, num_random_checks: int 
         if (statistics.median(DxDyRatios) > threshold_dxdy_ratio):
             if (statistics.median(Dx) < 0.0):
                 print("Passenger side camera orientation")
-                print("CLASS: 1")
             else:
                 print("Driver side camera orientation")
-                print("CLASS: 2")
         else:
             print("Forward or backward facing camera orientation")
-            print("CLASS: 0")
         print("FINISHED!")
     else:
         print("Less than 2 frames extracted. Skipping optical flow based camera mount classificatin.")
@@ -122,9 +122,9 @@ def list_jpg_files(directory: str):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Script for camera orientation classification using optical flow.")
     parser.add_argument("image_files_directory", help="Path to the directory of a singluar drive of image files")
-    parser.add_argument("--max_corners", type=int, help="Max number of features to track for optical flow", default=100)
-    parser.add_argument("--num_random_checks", type=int, help="Number of random checks", default=10)
-    parser.add_argument("--threshold_dxdy_ratio", type=float, help="Threshold for classifying camera orientation", default=3.0)
+    parser.add_argument("--max_corners", type=int, help="Max number of features to track for optical flow", default=50)
+    parser.add_argument("--num_random_checks", type=int, help="Number of random checks", default=20)
+    parser.add_argument("--threshold_dxdy_ratio", type=float, help="Threshold for classifying camera orientation", default=2.0)
     args = parser.parse_args()
 
     main(list_jpg_files(args.image_files_directory), args.max_corners, args.num_random_checks, args.threshold_dxdy_ratio)
