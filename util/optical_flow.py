@@ -5,6 +5,7 @@ import math
 import statistics
 import os
 import argparse
+import zipfile
 
 
 def main(image_files: list[str], max_corners: int, num_random_checks: int, threshold_dxdy_ratio: float):
@@ -76,9 +77,8 @@ def main(image_files: list[str], max_corners: int, num_random_checks: int, thres
                 c, d = old.ravel()
                 dx = dx + c-a
                 dy = dy + d-b
-
-            if (len(good_new) == 0):
-                print("No features found in frame " + str(rand_frame))
+            if (len(good_new) <= 0):
+                print("No features found in frame ", rand_frame)
                 continue
             Dx.append(dx/len(good_new))
             Dy.append(dy/len(good_new))
@@ -101,30 +101,47 @@ def main(image_files: list[str], max_corners: int, num_random_checks: int, thres
                 print("Driver side camera orientation")
         else:
             print("Forward or backward facing camera orientation")
+
         print("FINISHED!")
     else:
-        print("Less than 2 frames extracted. Skipping optical flow based camera mount classificatin.")
+        print("Less than 5 frames. Skipping optical flow based camera mount classificatin.")
         print("FINISHED!")
 
-def list_jpg_files(directory: str):
-    """Reads a directory and returns a list of all jpg files in the directory.
-    Args:
-        directory (string): Path to the directory
-    Returns:
-        list: List of all jpg files in the directory
+
+def list_image_files(directory: str, unzip=False):
     """
-    jpg_files = []
+    List all JPEG image files in a directory.
+
+    If 'unzip' is True and the directory is a zip file, it extracts the contents.
+
+    Parameters:
+        directory (str): Path to the directory or zip file.
+        unzip (bool, optional): Extract zip file if True. Defaults to False.
+
+    Returns:
+        list: List of JPEG image file paths.
+
+    Example:
+        >>> list_image_files("/path/to/images", unzip=True)
+        ['/path/to/images/image1.jpg', '/path/to/images/image2.jpg', ...]
+    """
+    image_files = []
+    if unzip and directory.endswith(".zip"):
+        with zipfile.ZipFile(directory, 'r') as zip_ref:
+            zip_ref.extractall(os.path.dirname(directory))
+        directory = os.path.splitext(directory)[0]  # Update directory to the extracted folder
     for filename in os.listdir(directory):
         if filename.endswith(".jpg"):
-            jpg_files.append(os.path.join(directory, filename))
-    return jpg_files
+            image_files.append(os.path.join(directory, filename))
+    return sorted(image_files, key=lambda x: int(x.split('/')[-1].split('.')[0]))
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Script for camera orientation classification using optical flow.")
     parser.add_argument("image_files_directory", help="Path to the directory of a singluar drive of image files")
-    parser.add_argument("--max_corners", type=int, help="Max number of features to track for optical flow", default=50)
-    parser.add_argument("--num_random_checks", type=int, help="Number of random checks", default=20)
-    parser.add_argument("--threshold_dxdy_ratio", type=float, help="Threshold for classifying camera orientation", default=2.0)
+    parser.add_argument("--unzip", action="store_true", help="Unzip the input directory if it's a zip file")
+    parser.add_argument("--max_corners", type=int, help="Max number of features to track for optical flow", default=300)
+    parser.add_argument("--num_random_checks", type=int, help="Number of random checks", default=30)
+    parser.add_argument("--threshold_dxdy_ratio", type=float, help="Threshold for classifying camera orientation", default=3.0)
     args = parser.parse_args()
-
-    main(list_jpg_files(args.image_files_directory), args.max_corners, args.num_random_checks, args.threshold_dxdy_ratio)
+    
+    main(list_image_files(args.image_files_directory, args.unzip), args.max_corners, args.num_random_checks, args.threshold_dxdy_ratio)
