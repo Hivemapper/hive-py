@@ -142,4 +142,3 @@ if __name__ == "__main__":
     args = parser.parse_args()
     
     main(list_image_files(args.image_files_directory, args.unzip), args.max_corners, args.num_random_checks, args.threshold_dxdy_ratio)
-    
