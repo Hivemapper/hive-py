@@ -97,7 +97,7 @@ def main(image_files: list[str], max_corners: int, num_random_checks: int, thres
             else:
                 print("Left side")
         else:
-            print("Forward or backward")
+            print("Front or back")
     else:
         print("Less than 1 frames. Skipping optical flow based camera mount classification.")
 
