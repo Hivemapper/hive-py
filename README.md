@@ -199,7 +199,7 @@ python -m imagery.query -v -M -x -g --input_file "test_feature_col.json" --start
 
 ## Optical Flow (Image Orientation)
 
-Default Use:
+Default Usage:
 
 ```
 python optical_flow.py input_dir
@@ -208,7 +208,7 @@ python optical_flow.py input_dir
 All Options:
 
 ```
-python optical_flow.py input_dir --unzip --max_corners=300 --num_random_checks=30 --threshold_dxdy_ratio=3.0
+python optical_flow.py input_dir --unzip --max_corners MAX_CORNERS --num_random_checks NUM_RANDOM_CHECKS --threshold_dxdy_ratio THRESHOLD_DXDY_RATIO
 ```
 
 ### `clahe-smart-clip` (Contrast Limited Adaptive Histogram Equalization with Smart Clipping)
