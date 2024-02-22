@@ -13,7 +13,7 @@ def main(image_files: list[str], max_corners: int, num_random_checks: int, thres
     Args:
         image_files: list of image file paths
         max_corners: Max number of features to track for optical flow
-        num_random_checks: Number of spots in the video to check when detemining camera orientation
+        num_random_checks: Number of random checks to perform
         threshold_dxdy_ratio: threshold for classifying camera orientation
     """
     # Ensure that the number of frames is greater than 1
