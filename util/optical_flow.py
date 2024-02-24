@@ -6,6 +6,11 @@ import statistics
 import os
 import argparse
 import zipfile
+from exiftool import ExifToolHelper
+from datetime import datetime
+import time
+from pyproj import Transformer
+
 
 
 def main(image_files: list[str], max_corners: int, num_random_checks: int, threshold_dxdy_ratio: float):
@@ -132,6 +137,173 @@ def list_image_files(directory: str, unzip=False):
     except:
         return sorted(image_files)
 
+
+def extract_coordinates(image_path: str):
+    """ 
+    Extract GPS and DateTimeOriginal data from an image.
+
+    Parameters:
+        image_path (str): Path to the image file.
+    
+    Returns:
+        dict: Dictionary containing GPS and DateTimeOriginal data.
+
+    Example:
+        >>> extract_coordinates("/path/to/image.jpg")
+        {
+            "GPSLatitudeRef": "N",
+            "GPSLatitude": "37 deg 48' 36.00\" N",
+            "GPSLongitudeRef": "W",
+            "GPSLongitude": "122 deg 16' 30.00\" W",
+            "GPSAltitude": "0 m",
+            "DateTimeOriginal": 1620000000,
+        }
+
+    """
+    with ExifToolHelper() as et:
+        metadata_list = et.get_metadata(image_path)
+        # Initialize a dictionary to hold the GPS values and DateTimeOriginal
+        gps_data = {
+            "GPSLatitudeRef": None,
+            "GPSLatitude": None,
+            "GPSLongitudeRef": None,
+            "GPSLongitude": None,
+            "GPSAltitude": None,
+            "DateTimeOriginal": None,  # Added field for date-time
+        }
+        
+        # Loop through each metadata dictionary
+        for metadata in metadata_list:
+            # Check and extract the GPS metadata and DateTimeOriginal
+            for key in list(gps_data.keys()):  # Use list to copy keys for safe iteration
+                exif_key = f"EXIF:{key}"
+                if exif_key in metadata:
+                    if key == "DateTimeOriginal":
+                        # Convert DateTimeOriginal to epoch time
+                        date_time_obj = datetime.strptime(metadata[exif_key], '%Y:%m:%d %H:%M:%S')
+                        gps_data[key] = int(time.mktime(date_time_obj.timetuple()))
+                    else:
+                        # Save the value with the simplified key for GPS data
+                        gps_data[key] = metadata[exif_key]
+        
+        # Return the collected data
+        return gps_data
+
+def extract_all_path_data(image_files: list[str]):
+    """
+    Extract GPS and DateTimeOriginal data from all images in a list.
+
+    Parameters:
+        image_files (list): List of image file paths.
+
+    Returns:
+        list: List of dictionaries containing GPS and DateTimeOriginal data for each image.
+
+    Example:
+        >>> extract_all_path_data(["/path/to/image1.jpg", "/path/to/image2.jpg", ...])
+        [
+            {
+                "GPSLatitudeRef": "N",
+                "GPSLatitude": "37 deg 48' 36.00\" N",
+                "GPSLongitudeRef": "W",
+                "GPSLongitude": "122 deg 16' 30.00\" W",
+                "GPSAltitude": "0 m",
+                "DateTimeOriginal": 1620000000,
+            },
+            ...
+        ]
+    """
+    return [extract_coordinates(image) for image in image_files]
+
+def extract_values(dicts: list[dict], key: str):
+    """
+    Extracts values from a list of dictionaries based on a specified key.
+
+    Parameters:
+    - dicts (list of dict): A list of dictionaries from which to extract the values.
+    - key (str): The key whose values are to be extracted from the dictionaries.
+
+    Returns:
+    - list: A list of values corresponding to the specified key from each dictionary.
+            If a dictionary does not have the key, `None` is included in the list.
+    """
+    return [d.get(key, None) for d in dicts]
+
+def lla_to_web_mercator(lats, lons):
+    """
+    Convert lists of latitudes and longitudes to Web Mercator coordinates.
+
+    Parameters:
+    - lats (list): List of latitudes.
+    - lons (list): List of longitudes.
+
+    Returns:
+    - tuple: Two lists containing the X and Y coordinates in meters.
+    """
+    transformer = Transformer.from_crs("epsg:4326", "epsg:3857")
+    xs, ys = transformer.transform(lons, lats)
+    return xs, ys
+
+def calculate_headings(xs: list[float], ys: list[float]):
+    """
+    Calculates headings based on x and y coordinates. The list of headings
+    will match the length of the coordinates list by repeating the last heading
+    for the final coordinate. The second to last heading will be the same as the
+    last heading.
+
+    Parameters:
+    - xs (list of float): X coordinates.
+    - ys (list of float): Y coordinates.
+
+    Returns:
+    - list of float: Calculated headings in radians from the x-axis, with the last
+      heading repeated for the final coordinate. For the first heading, it's calculated
+      from the first two points.
+    """
+    headings = []
+
+    for i in range(1, len(xs)):
+        dx = xs[i] - xs[i-1]
+        dy = ys[i] - ys[i-1]
+        heading = math.atan2(dy, dx)
+        headings.append(heading)
+    
+        # Repeat the last heading for the final coordinate
+        headings.append(headings[-1])
+
+    return headings
+
+def make_headings_continuous(headings):
+    """
+    Adjusts an array of headings to be continuous by ensuring that each heading
+    change does not exceed ±π radians from the previous heading.
+
+    Parameters:
+    - headings (list of float): An array of headings in radians.
+
+    Returns:
+    - list of float: A new array of adjusted, continuous headings.
+    """
+    if not headings:
+        return []  # Return early if the input list is empty
+
+    corrected_headings = [headings[0]]  # Start with the first heading
+    two_pi = 2 * math.pi
+    for i in range(1, len(headings)):
+        diff = headings[i] - headings[i - 1]
+
+        # Normalize the difference to be within the range [-π, π]
+        if diff > math.pi:
+            diff -= two_pi
+        elif diff < -math.pi:
+            diff += two_pi
+
+        # Adjust the current heading based on the normalized difference
+        corrected_headings.append(corrected_headings[i - 1] + diff)
+
+    return corrected_headings
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Script for camera orientation classification using optical flow.")
     parser.add_argument("image_files_directory", help="Path to the directory of a singluar drive of image files")
@@ -142,3 +314,4 @@ if __name__ == "__main__":
     args = parser.parse_args()
     
     main(list_image_files(args.image_files_directory, args.unzip), args.max_corners, args.num_random_checks, args.threshold_dxdy_ratio)
+    
