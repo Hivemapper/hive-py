@@ -172,7 +172,7 @@ def extract_coordinates(image_path: str):
         # Loop through each metadata dictionary
         for metadata in metadata_list:
             # Check and extract the GPS metadata and DateTimeOriginal
-            for key in list(gps_data.keys()):  # Use list to copy keys for safe iteration
+            for key in list(gps_data.keys()): 
                 exif_key = f"EXIF:{key}"
                 if exif_key in metadata:
                     if key == "DateTimeOriginal":
@@ -280,9 +280,9 @@ def make_headings_continuous(headings):
     - list of float: A new array of adjusted, continuous headings.
     """
     if not headings:
-        return []  # Return early if the input list is empty
+        return [] 
 
-    corrected_headings = [headings[0]]  # Start with the first heading
+    corrected_headings = [headings[0]] 
     two_pi = 2 * math.pi
     for i in range(1, len(headings)):
         diff = headings[i] - headings[i - 1]
@@ -330,12 +330,12 @@ def group_consecutive_and_filter_out_small_groups(indexes):
     Returns:
     - A list of lists, each containing consecutive integers, with groups of size less than 2 dropped.
     """
-    if not indexes:  # Handle empty input
+    if not indexes:
         return []
 
     # Sort indexes to ensure correct ordering
     sorted_indexes = sorted(indexes)
-    grouped = [[sorted_indexes[0]]]  # Start with the first index
+    grouped = [[sorted_indexes[0]]]  
 
     for index in sorted_indexes[1:]:
         if index == grouped[-1][-1] + 1:
