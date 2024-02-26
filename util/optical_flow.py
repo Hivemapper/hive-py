@@ -311,7 +311,7 @@ def group_consecutive_and_filter_out_small_groups(indexes):
     - indexes (list): List of integers.
 
     Returns:
-    - A list of lists, each containing consecutive integers, with groups of size less than 2 dropped.
+    - A list of lists, each containing consecutive integers, with groups of 2 or less dropped.
     """
     if not indexes:
         return []
