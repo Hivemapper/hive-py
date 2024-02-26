@@ -166,7 +166,7 @@ def extract_coordinates(image_path: str):
             "GPSLongitudeRef": None,
             "GPSLongitude": None,
             "GPSAltitude": None,
-            "DateTimeOriginal": None,  # Added field for date-time
+            "DateTimeOriginal": None,
         }
         
         # Loop through each metadata dictionary
@@ -183,7 +183,6 @@ def extract_coordinates(image_path: str):
                         # Save the value with the simplified key for GPS data
                         gps_data[key] = metadata[exif_key]
         
-        # Return the collected data
         return gps_data
 
 def extract_all_path_data(image_files: list[str]):
@@ -243,17 +242,14 @@ def calculate_headings(xs: list[float], ys: list[float]):
     """
     Calculates headings based on x and y coordinates. The list of headings
     will match the length of the coordinates list by repeating the last heading
-    for the final coordinate. The second to last heading will be the same as the
-    last heading.
+    for the final coordinate.
 
     Parameters:
     - xs (list of float): X coordinates.
     - ys (list of float): Y coordinates.
 
     Returns:
-    - list of float: Calculated headings in radians from the x-axis, with the last
-      heading repeated for the final coordinate. For the first heading, it's calculated
-      from the first two points.
+    - list of float: Calculated headings in radians for each coordinate.
     """
     headings = []
 
