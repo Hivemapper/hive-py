@@ -225,19 +225,6 @@ def extract_values(dicts: list[dict], key: str):
     """
     return [d.get(key, None) for d in dicts]
 
-def normalize_times(timestamps):
-    """
-    Normalize timestamps so the earliest is 0 and others show seconds from the earliest.
-
-    Parameters:
-    - timestamps: List of epoch times (seconds since Unix epoch).
-
-    Returns:
-    - List of normalized timestamps in seconds.
-    """
-    min_time = min(timestamps)
-    return [t - min_time for t in timestamps]
-
 def calculate_headings(xs: list[float], ys: list[float]):
     """
     Calculates headings based on x and y coordinates. The list of headings
@@ -379,7 +366,6 @@ if __name__ == "__main__":
     extracted_path_data = extract_all_path_data(files)
     latitudes = extract_values(extracted_path_data, "GPSLatitude")
     longitudes = extract_values(extracted_path_data, "GPSLongitude")
-    timestamps = normalize_times(extract_values(extracted_path_data, "DateTimeOriginal"))
     print("Identifying and removing turns during drive data...")
     headings = calculate_headings(latitudes, longitudes)
     continuous_headings = make_headings_continuous(headings)
