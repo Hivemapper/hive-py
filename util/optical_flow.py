@@ -6,19 +6,22 @@ import statistics
 import os
 import argparse
 import zipfile
+from exiftool import ExifToolHelper
+from datetime import datetime
+import time
 
 
-def main(image_files: list[str], max_corners: int, num_random_checks: int, threshold_dxdy_ratio: float):
+
+def optical_flow(image_files: list[str], max_corners: int, num_checks: int, threshold_dxdy_ratio: float):
     """ For camera orientation classification using optical flow.
     Args:
         image_files: list of image file paths
         max_corners: Max number of features to track for optical flow
-        num_random_checks: Number of random checks to perform
+        num_checks: Number of checks to perform
         threshold_dxdy_ratio: threshold for classifying camera orientation
     """
     # Ensure that the number of frames is greater than 1
     if (len(image_files) > 1):
-        print("Checking for camera mount classification using optical flow.")
 
         # Count the number of frames
         total_frames =len(image_files)
@@ -39,11 +42,10 @@ def main(image_files: list[str], max_corners: int, num_random_checks: int, thres
         Dx = []
         Dy = []
 
-        for i in range(0, num_random_checks):
+        for i in range(0, min(num_checks, total_frames)):
 
             # Get first frame
-            rand_frame = math.floor((random.uniform(0, 1))*(total_frames-1))
-            frame1 = cv2.imread(image_files[rand_frame])
+            frame1 = cv2.imread(image_files[i])
             gray1 = cv2.cvtColor(frame1, cv2.COLOR_BGR2GRAY)
 
             # Create a mask image for drawing purposes
@@ -54,7 +56,7 @@ def main(image_files: list[str], max_corners: int, num_random_checks: int, thres
                 gray1, mask=None, **feature_params)
 
             # Get second frame
-            frame2 = cv2.imread(image_files[rand_frame+1])
+            frame2 = cv2.imread(image_files[i+1])
             gray2 = cv2.cvtColor(frame2, cv2.COLOR_BGR2GRAY)
 
             # Calculate optical flow
@@ -75,7 +77,7 @@ def main(image_files: list[str], max_corners: int, num_random_checks: int, thres
                 dx = dx + c-a
                 dy = dy + d-b
             if (len(good_new) <= 0):
-                print("No features found in frame ", rand_frame)
+                print("No features found in frame ", image_files[i])
                 continue
             Dx.append(dx/len(good_new))
             Dy.append(dy/len(good_new))
@@ -104,7 +106,7 @@ def main(image_files: list[str], max_corners: int, num_random_checks: int, thres
 
 def list_image_files(directory: str, unzip=False):
     """
-    List all JPEG image files in a directory.
+    List and sorts all JPEG image files in a directory.
 
     If 'unzip' is True and the directory is a zip file, it extracts the contents.
 
@@ -132,13 +134,248 @@ def list_image_files(directory: str, unzip=False):
     except:
         return sorted(image_files)
 
+
+def extract_coordinates(image_path: str):
+    """ 
+    Extract GPS and DateTimeOriginal data from an image.
+
+    Parameters:
+        image_path (str): Path to the image file.
+    
+    Returns:
+        dict: Dictionary containing GPS and DateTimeOriginal data.
+
+    Example:
+        >>> extract_coordinates("/path/to/image.jpg")
+        {
+            "GPSLatitudeRef": "N",
+            "GPSLatitude": "37 deg 48' 36.00\" N",
+            "GPSLongitudeRef": "W",
+            "GPSLongitude": "122 deg 16' 30.00\" W",
+            "GPSAltitude": "0 m",
+            "DateTimeOriginal": 1620000000,
+        }
+
+    """
+    with ExifToolHelper() as et:
+        metadata_list = et.get_metadata(image_path)
+        # Initialize a dictionary to hold the GPS values and DateTimeOriginal
+        gps_data = {
+            "GPSLatitudeRef": None,
+            "GPSLatitude": None,
+            "GPSLongitudeRef": None,
+            "GPSLongitude": None,
+            "GPSAltitude": None,
+            "DateTimeOriginal": None,
+        }
+        
+        # Loop through each metadata dictionary
+        for metadata in metadata_list:
+            # Check and extract the GPS metadata and DateTimeOriginal
+            for key in list(gps_data.keys()): 
+                exif_key = f"EXIF:{key}"
+                if exif_key in metadata:
+                    if key == "DateTimeOriginal":
+                        # Convert DateTimeOriginal to epoch time
+                        date_time_obj = datetime.strptime(metadata[exif_key], '%Y:%m:%d %H:%M:%S')
+                        gps_data[key] = int(time.mktime(date_time_obj.timetuple()))
+                    else:
+                        # Save the value with the simplified key for GPS data
+                        gps_data[key] = metadata[exif_key]
+        
+        return gps_data
+
+def extract_all_path_data(image_files: list[str]):
+    """
+    Extract GPS and DateTimeOriginal data from all images in a list.
+
+    Parameters:
+        image_files (list): List of image file paths.
+
+    Returns:
+        list: List of dictionaries containing GPS and DateTimeOriginal data for each image.
+
+    Example:
+        >>> extract_all_path_data(["/path/to/image1.jpg", "/path/to/image2.jpg", ...])
+        [
+            {
+                "GPSLatitudeRef": "N",
+                "GPSLatitude": "37 deg 48' 36.00\" N",
+                "GPSLongitudeRef": "W",
+                "GPSLongitude": "122 deg 16' 30.00\" W",
+                "GPSAltitude": "0 m",
+                "DateTimeOriginal": 1620000000,
+            },
+            ...
+        ]
+    """
+    return [extract_coordinates(image) for image in image_files]
+
+def extract_values(dicts: list[dict], key: str):
+    """
+    Extracts values from a list of dictionaries based on a specified key.
+
+    Parameters:
+    - dicts (list of dict): A list of dictionaries from which to extract the values.
+    - key (str): The key whose values are to be extracted from the dictionaries.
+
+    Returns:
+    - list: A list of values corresponding to the specified key from each dictionary.
+            If a dictionary does not have the key, `None` is included in the list.
+    """
+    return [d.get(key, None) for d in dicts]
+
+def calculate_headings(xs: list[float], ys: list[float]):
+    """
+    Calculates headings based on x and y coordinates. The list of headings
+    will match the length of the coordinates list by repeating the last heading
+    for the final coordinate.
+
+    Parameters:
+    - xs (list of float): X coordinates.
+    - ys (list of float): Y coordinates.
+
+    Returns:
+    - list of float: Calculated headings in radians for each coordinate.
+    """
+    headings = []
+
+    for i in range(1, len(xs)):
+        dx = xs[i] - xs[i-1]
+        dy = ys[i] - ys[i-1]
+        heading = math.atan2(dy, dx)
+        headings.append(heading)
+    
+    # Repeat the last heading for the final coordinate
+    headings.append(headings[-1])
+
+    return headings
+
+def make_headings_continuous(headings):
+    """
+    Adjusts an array of headings to be continuous by ensuring that each heading
+    change does not exceed ±π radians from the previous heading.
+
+    Parameters:
+    - headings (list of float): An array of headings in radians.
+
+    Returns:
+    - list of float: A new array of adjusted, continuous headings.
+    """
+    if not headings:
+        return [] 
+
+    corrected_headings = [headings[0]] 
+    two_pi = 2 * math.pi
+    for i in range(1, len(headings)):
+        diff = headings[i] - headings[i - 1]
+
+        # Normalize the difference to be within the range [-π, π]
+        if diff > math.pi:
+            diff -= two_pi
+        elif diff < -math.pi:
+            diff += two_pi
+
+        # Adjust the current heading based on the normalized difference
+        corrected_headings.append(corrected_headings[i - 1] + diff)
+
+    return corrected_headings
+
+def find_stable_headings(headings, threshold=0.07):
+    """
+    Find indexes of headings where changes do not exceed a set threshold, assuming
+    headings are continuous and don't require wrap-around handling.
+
+    Parameters:
+    - headings (list of float): List of continuous heading values in radians.
+    - threshold (float): The maximum allowed change in heading to be considered stable in radians.
+
+    Returns:
+    - list of int: Indexes of the first heading in each pair considered stable.
+    """
+    stable_indexes = []
+    for i in range(len(headings) - 1):
+        # Calculate the absolute difference in heading
+        diff = abs(headings[i] - headings[i + 1])
+
+        if diff <= threshold:
+            stable_indexes.append(i)
+    
+    return stable_indexes
+
+def group_consecutive_and_filter_out_small_groups(indexes):
+    """
+    Groups consecutive integers in a list and drops groups with fewer than two items.
+
+    Parameters:
+    - indexes (list): List of integers.
+
+    Returns:
+    - A list of lists, each containing consecutive integers, with groups of 2 or less dropped.
+    """
+    if not indexes:
+        return []
+
+    # Sort indexes to ensure correct ordering
+    sorted_indexes = sorted(indexes)
+    grouped = [[sorted_indexes[0]]]  
+
+    for index in sorted_indexes[1:]:
+        if index == grouped[-1][-1] + 1:
+            # If current index is consecutive, add it to the last group
+            grouped[-1].append(index)
+        else:
+            # Otherwise, start a new group
+            grouped.append([index])
+
+    # Filter out groups with fewer than two items
+    filtered_grouped = [group for group in grouped if len(group) >= 2]
+
+    return filtered_grouped
+
+def get_largest_group(groups):
+    """
+    Given a list of groups, returns the group with the most items.
+
+    Parameters:
+    - groups (list of list): List of groups, each containing items.
+
+    Returns:
+    - list: The group with the most items.
+    """
+    chosen_group = []
+    for group in groups:
+        cur_len = len(group)
+        if cur_len > len(chosen_group):
+            chosen_group = group
+    return chosen_group
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Script for camera orientation classification using optical flow.")
     parser.add_argument("image_files_directory", help="Path to the directory of a singluar drive of image files")
     parser.add_argument("--unzip", action="store_true", help="Unzip the input directory if it's a zip file")
     parser.add_argument("--max_corners", type=int, help="Max number of features to track for optical flow", default=300)
-    parser.add_argument("--num_random_checks", type=int, help="Number of random checks", default=30)
+    parser.add_argument("--num_checks", type=int, help="Number of checks, must not exceed number of continuous frames found", default=10)
     parser.add_argument("--threshold_dxdy_ratio", type=float, help="Threshold for classifying camera orientation", default=3.0)
     args = parser.parse_args()
+
+
+    print("Extracting gnss coordinates from images...")
+    files = list_image_files(args.image_files_directory, args.unzip)
+    extracted_path_data = extract_all_path_data(files)
+    latitudes = extract_values(extracted_path_data, "GPSLatitude")
+    longitudes = extract_values(extracted_path_data, "GPSLongitude")
+    print("Identifying and removing turns during drive data...")
+    headings = calculate_headings(latitudes, longitudes)
+    continuous_headings = make_headings_continuous(headings)
+    stable_indexes = group_consecutive_and_filter_out_small_groups(find_stable_headings(continuous_headings))
+    chosen_group = get_largest_group(stable_indexes)
+    if len(chosen_group) <= args.num_checks:
+        print(f"Not enough continous data to calculate optical flow, only {len(chosen_group)} frames available. Exiting.")
+        exit()
+    print(f"Largest identified continous driving path without turns {len(chosen_group)} Frames.")
+    filtered_list = [files[i] for i in chosen_group if i < len(files)]
+    print("Calculating optical flow...")
+    optical_flow(filtered_list, args.max_corners, args.num_checks, args.threshold_dxdy_ratio)
     
-    main(list_image_files(args.image_files_directory, args.unzip), args.max_corners, args.num_random_checks, args.threshold_dxdy_ratio)
