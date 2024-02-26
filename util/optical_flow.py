@@ -42,7 +42,7 @@ def optical_flow(image_files: list[str], max_corners: int, num_checks: int, thre
         Dx = []
         Dy = []
 
-        for i in range(0, num_checks):
+        for i in range(0, min(num_checks, total_frames)):
 
             # Get first frame
             frame1 = cv2.imread(image_files[i])
