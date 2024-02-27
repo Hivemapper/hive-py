@@ -280,7 +280,7 @@ def make_headings_continuous(headings):
 
     return corrected_headings
 
-def find_stable_headings(headings, threshold=0.08):
+def find_stable_headings(headings, threshold):
     """
     Find indexes of headings where changes do not exceed a set threshold, assuming
     headings are continuous and don't require wrap-around handling.
@@ -340,6 +340,7 @@ if __name__ == "__main__":
     parser.add_argument("--max_corners", type=int, help="Max number of features to track for optical flow", default=300)
     parser.add_argument("--num_random_checks", type=int, help="Number of random checks", default=10)
     parser.add_argument("--threshold_dxdy_ratio", type=float, help="Threshold for classifying camera orientation", default=3.0)
+    parser.add_argument("--turn_threshold", type=float, help="Threshold for difference in radians from one frame to the next to consider the vehicle turning", default=0.07)
     args = parser.parse_args()
 
 
@@ -351,7 +352,7 @@ if __name__ == "__main__":
     print("Identifying and removing turns during drive data...")
     headings = calculate_headings(latitudes, longitudes)
     continuous_headings = make_headings_continuous(headings)
-    stable_indexes = group_consecutive_and_filter_out_small_groups(find_stable_headings(continuous_headings))
+    stable_indexes = group_consecutive_and_filter_out_small_groups(find_stable_headings(continuous_headings, args.turn_threshold))
     # Grab groups of images that are not turns
     filtered_list = []
     count = 0
@@ -361,7 +362,7 @@ if __name__ == "__main__":
             sub_list.append(files[i])
             count += 1
         filtered_list.append(sub_list)
-    print(F"Total frames recieved: {len(files)}")
+    print(F"Total frames received: {len(files)}")
     print(F"Total frames after filtering out turns: {count}")
     print("Calculating optical flow...")
     optical_flow(filtered_list, args.max_corners, args.num_random_checks, args.threshold_dxdy_ratio)
