@@ -208,7 +208,7 @@ python optical_flow.py input_dir
 All Options:
 
 ```
-python optical_flow.py input_dir --unzip --max_corners MAX_CORNERS --num_checks NUM_CHECKS --threshold_dxdy_ratio THRESHOLD_DXDY_RATIO
+python optical_flow.py input_dir --unzip --max_corners MAX_CORNERS --num_random_checks NUM_RANDOM_CHECKS --threshold_dxdy_ratio THRESHOLD_DXDY_RATIO --turn_threshold TURN_THRESHOLD
 ```
 
 ### `clahe-smart-clip` (Contrast Limited Adaptive Histogram Equalization with Smart Clipping)

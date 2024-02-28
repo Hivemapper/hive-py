@@ -12,19 +12,17 @@ import time
 
 
 
-def optical_flow(image_files: list[str], max_corners: int, num_checks: int, threshold_dxdy_ratio: float):
+def optical_flow(image_files: list[list[str]], max_corners: int, num_random_checks: int, threshold_dxdy_ratio: float):
     """ For camera orientation classification using optical flow.
     Args:
-        image_files: list of image file paths
+        image_files: list of groups of images. Each group is a list of image file paths representing a continuous drive segment.
         max_corners: Max number of features to track for optical flow
-        num_checks: Number of checks to perform
+        num_random_checks: Number of random checks to perform
         threshold_dxdy_ratio: threshold for classifying camera orientation
     """
-    # Ensure that the number of frames is greater than 1
-    if (len(image_files) > 1):
-
-        # Count the number of frames
-        total_frames =len(image_files)
+    # Check if there are enough frames
+    total_frames = len([item for sublist in image_files for item in sublist])
+    if (total_frames > 1):
 
         # Set parameters for corner detection
         feature_params = dict(maxCorners=max_corners,
@@ -42,21 +40,22 @@ def optical_flow(image_files: list[str], max_corners: int, num_checks: int, thre
         Dx = []
         Dy = []
 
-        for i in range(0, min(num_checks, total_frames)):
+        for i in range(0, min(num_random_checks, total_frames)):
+            # Randomly select group of images
+            random_group = math.floor((random.uniform(0, 1))*(len(image_files)-1))
+            # Randomly select a frame, ensuring that the last frame is not selected
+            rand_frame = math.floor((random.uniform(0, 1))*(len(image_files[random_group])-2))
 
             # Get first frame
-            frame1 = cv2.imread(image_files[i])
+            frame1 = cv2.imread(image_files[random_group][rand_frame])
             gray1 = cv2.cvtColor(frame1, cv2.COLOR_BGR2GRAY)
-
-            # Create a mask image for drawing purposes
-            mask = np.zeros_like(frame1)
 
             # Get features to track
             p0 = cv2.goodFeaturesToTrack(
                 gray1, mask=None, **feature_params)
 
             # Get second frame
-            frame2 = cv2.imread(image_files[i+1])
+            frame2 = cv2.imread(image_files[random_group][rand_frame+1])
             gray2 = cv2.cvtColor(frame2, cv2.COLOR_BGR2GRAY)
 
             # Calculate optical flow
@@ -281,7 +280,7 @@ def make_headings_continuous(headings):
 
     return corrected_headings
 
-def find_stable_headings(headings, threshold=0.07):
+def find_stable_headings(headings, threshold):
     """
     Find indexes of headings where changes do not exceed a set threshold, assuming
     headings are continuous and don't require wrap-around handling.
@@ -333,31 +332,15 @@ def group_consecutive_and_filter_out_small_groups(indexes):
 
     return filtered_grouped
 
-def get_largest_group(groups):
-    """
-    Given a list of groups, returns the group with the most items.
-
-    Parameters:
-    - groups (list of list): List of groups, each containing items.
-
-    Returns:
-    - list: The group with the most items.
-    """
-    chosen_group = []
-    for group in groups:
-        cur_len = len(group)
-        if cur_len > len(chosen_group):
-            chosen_group = group
-    return chosen_group
-
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Script for camera orientation classification using optical flow.")
     parser.add_argument("image_files_directory", help="Path to the directory of a singluar drive of image files")
     parser.add_argument("--unzip", action="store_true", help="Unzip the input directory if it's a zip file")
     parser.add_argument("--max_corners", type=int, help="Max number of features to track for optical flow", default=300)
-    parser.add_argument("--num_checks", type=int, help="Number of checks, must not exceed number of continuous frames found", default=10)
+    parser.add_argument("--num_random_checks", type=int, help="Number of random checks", default=10)
     parser.add_argument("--threshold_dxdy_ratio", type=float, help="Threshold for classifying camera orientation", default=3.0)
+    parser.add_argument("--turn_threshold", type=float, help="Threshold for difference in radians from one frame to the next to consider the vehicle turning", default=0.07)
     args = parser.parse_args()
 
 
@@ -369,13 +352,18 @@ if __name__ == "__main__":
     print("Identifying and removing turns during drive data...")
     headings = calculate_headings(latitudes, longitudes)
     continuous_headings = make_headings_continuous(headings)
-    stable_indexes = group_consecutive_and_filter_out_small_groups(find_stable_headings(continuous_headings))
-    chosen_group = get_largest_group(stable_indexes)
-    if len(chosen_group) <= args.num_checks:
-        print(f"Not enough continous data to calculate optical flow, only {len(chosen_group)} frames available. Exiting.")
-        exit()
-    print(f"Largest identified continous driving path without turns {len(chosen_group)} Frames.")
-    filtered_list = [files[i] for i in chosen_group if i < len(files)]
+    stable_indexes = group_consecutive_and_filter_out_small_groups(find_stable_headings(continuous_headings, args.turn_threshold))
+    # Grab groups of images that are not turns
+    filtered_list = []
+    count = 0
+    for group in stable_indexes:
+        sub_list = []
+        for i in group:
+            sub_list.append(files[i])
+            count += 1
+        filtered_list.append(sub_list)
+    print(F"Total frames received: {len(files)}")
+    print(F"Total frames after filtering out turns: {count}")
     print("Calculating optical flow...")
-    optical_flow(filtered_list, args.max_corners, args.num_checks, args.threshold_dxdy_ratio)
+    optical_flow(filtered_list, args.max_corners, args.num_random_checks, args.threshold_dxdy_ratio)
     
