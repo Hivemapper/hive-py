@@ -10,7 +10,7 @@ pip install -r requirements.txt
 
 ## Notes & Limitations
 
-- Generate a base64 encoded string like f'my-user-name:{apiKey}' to use as input for `authorization`
+- Generate a base64 encoded string like 'my-user-name:{apiKey}' to use as input for `authorization`
 - The Imagery API demo restricts queries to Polygons with a maximum area of 1 km^2
   - This wrapper supports automatically breaking up large geometries into smaller geometries behind the scenes
 
