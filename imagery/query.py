@@ -14,7 +14,7 @@ from itertools import repeat
 from requests.adapters import HTTPAdapter, Retry
 from tqdm import tqdm
 from urllib.parse import quote
-from util import geo, stitching
+from util import geo, stitching, write_csv_from_csv
 from imagery.processing import clahe_smart_clip
 
 BATCH_SIZE = 10000
@@ -960,6 +960,8 @@ if __name__ == '__main__':
   parser.add_argument('-M', '--merge_metadata', action='store_true')
   parser.add_argument('-I', '--custom_id_field', type=str)
   parser.add_argument('-S', '--custom_min_date_field', type=str)
+  parser.add_argument('-Io', '--custom_output_dir_field', type=str)
+  parser.add_argument('_Ib', '--custom_output_success_field', type=str)
   parser.add_argument('-tI', '--track_by_custom_id', action='store_true')
   parser.add_argument('-p', '--passthrough_csv_output', action='store_true')
   parser.add_argument('-k', '--camera_intrinsics', action='store_true')
@@ -1017,8 +1019,17 @@ if __name__ == '__main__':
     pass
 
   if tracked_by_id is not None and args.passthrough_csv_output:
-    # todo write csv
-    pass
+    output_path = os.path.join(args.output_dir, 'results.csv')
+    if args.verbose:
+      print(f'writing {output_path}')
+    write_csv_from_csv(
+      args.input_file,
+      output_path,
+      args.custom_id_field,
+      tracked_by_id,
+      args.custom_output_dir_field,
+      args.custom_output_success_field,
+    )
 
   if args.image_post_processing:
     if args.verbose:
