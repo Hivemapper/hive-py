@@ -696,11 +696,13 @@ def _query(
       pbar = tqdm(total=len(frames))
 
     if tracked_by_id is not None:
+      by_id = {}
       for frame in frames:
         custom_id = frame['id']
         by_id.setdefault(custom_id, [])
         by_id[custom_id].append(frame)
-        tracked_by_id[custom_id] = True
+        tracked_by_id.setdefault(custom_id, frame.get('timestamp'))
+        tracked_by_id[custom_id] = max(tracked_by_id[custom_id], frame.get('timestamp'))
       for custom_id, frame_set in by_id.items():
         local_dir = os.path.join(output_dir, custom_id)
         img_paths += download_files(
@@ -961,7 +963,8 @@ if __name__ == '__main__':
   parser.add_argument('-I', '--custom_id_field', type=str)
   parser.add_argument('-S', '--custom_min_date_field', type=str)
   parser.add_argument('-Io', '--custom_output_dir_field', type=str)
-  parser.add_argument('_Ib', '--custom_output_success_field', type=str)
+  parser.add_argument('-Ib', '--custom_output_success_field', type=str)
+  parser.add_argument('-Is', '--custom_output_date_field', type=str)
   parser.add_argument('-tI', '--track_by_custom_id', action='store_true')
   parser.add_argument('-p', '--passthrough_csv_output', action='store_true')
   parser.add_argument('-k', '--camera_intrinsics', action='store_true')
@@ -1015,7 +1018,7 @@ if __name__ == '__main__':
   )
 
   if args.zip_dirs:
-    replace_dirs_with_zips(args.output_path, args.verbose)
+    replace_dirs_with_zips(args.output_dir, args.verbose)
 
   if tracked_by_id is not None and args.passthrough_csv_output:
     output_path = os.path.join(args.output_dir, 'results.csv')
@@ -1027,6 +1030,7 @@ if __name__ == '__main__':
       args.custom_id_field,
       tracked_by_id,
       args.custom_output_dir_field,
+      args.custom_output_date_field,
       args.custom_output_success_field,
     )
 
