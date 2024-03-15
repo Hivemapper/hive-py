@@ -14,7 +14,7 @@ from itertools import repeat
 from requests.adapters import HTTPAdapter, Retry
 from tqdm import tqdm
 from urllib.parse import quote
-from util import geo, stitching
+from util import geo, replace_dirs_with_zips, stitching, write_csv_from_csv
 from imagery.processing import clahe_smart_clip
 
 BATCH_SIZE = 10000
@@ -642,6 +642,7 @@ def _query(
   update_exif=False,
   custom_id_field=None,
   custom_min_date_field=None,
+  tracked_by_id=None,
   skip_geo_file=None,
   num_threads=DEFAULT_THREADS,
   verbose=False,
@@ -694,7 +695,32 @@ def _query(
       print(f'Downloading with {num_threads} threads...')
       pbar = tqdm(total=len(frames))
 
-    if should_stitch:
+    if tracked_by_id is not None:
+      by_id = {}
+      for frame in frames:
+        custom_id = frame['id']
+        by_id.setdefault(custom_id, [])
+        by_id[custom_id].append(frame)
+        tracked_by_id.setdefault(custom_id, frame.get('timestamp'))
+        tracked_by_id[custom_id] = max(tracked_by_id[custom_id], frame.get('timestamp'))
+      for custom_id, frame_set in by_id.items():
+        local_dir = os.path.join(output_dir, custom_id)
+        img_paths += download_files(
+          frame_set,
+          local_dir,
+          authorization,
+          False,
+          merge_metadata,
+          camera_intrinsics,
+          update_exif,
+          num_threads,
+          verbose,
+          use_cache,
+          pbar,
+        )
+      if export_geojson:
+        write_geojson([frames], output_dir, True, verbose)
+    elif should_stitch:
       stitched = stitching.stitch(frames, max_dist, max_lag, max_angle, verbose)
       for i, frame_set in enumerate(stitched):
         folder = f'{str(uuid.uuid4())}-{str(i)}'
@@ -823,6 +849,7 @@ def query(
   update_exif=False,
   custom_id_field=None,
   custom_min_date_field=None,
+  tracked_by_id=None,
   skip_geo_file=None,
   num_threads=DEFAULT_THREADS,
   verbose=False,
@@ -863,6 +890,7 @@ def query(
       update_exif,
       custom_id_field,
       custom_min_date_field,
+      tracked_by_id,
       skip_geo_file,
       num_threads,
       verbose,
@@ -906,6 +934,7 @@ def query(
       update_exif,
       custom_id_field,
       custom_min_date_field,
+      tracked_by_id,
       skip_geo_file,
       num_threads,
       verbose,
@@ -927,11 +956,17 @@ if __name__ == '__main__':
   parser.add_argument('-l', '--max_lag', type=float, default=DEFAULT_STITCH_MAX_ANGLE)
   parser.add_argument('-z', '--max_angle', type=float, default=DEFAULT_STITCH_MAX_LAG)
   parser.add_argument('-o', '--output_dir', type=str, required=True)
+  parser.add_argument('-Z', '--zip_dirs', action='store_true')
   parser.add_argument('-g', '--export_geojson', action='store_true')
   parser.add_argument('-w', '--width', type=int, default=DEFAULT_WIDTH)
   parser.add_argument('-M', '--merge_metadata', action='store_true')
   parser.add_argument('-I', '--custom_id_field', type=str)
   parser.add_argument('-S', '--custom_min_date_field', type=str)
+  parser.add_argument('-Io', '--custom_output_dir_field', type=str)
+  parser.add_argument('-Ib', '--custom_output_success_field', type=str)
+  parser.add_argument('-Is', '--custom_output_date_field', type=str)
+  parser.add_argument('-tI', '--track_by_custom_id', action='store_true')
+  parser.add_argument('-p', '--passthrough_csv_output', action='store_true')
   parser.add_argument('-k', '--camera_intrinsics', action='store_true')
   parser.add_argument('-E', '--update_exif', action='store_true')
   parser.add_argument('-K', '--skip_geo_file', type=str)
@@ -951,6 +986,10 @@ if __name__ == '__main__':
     assert(args.image_post_processing in VALID_POST_PROCESSING_OPTS)
     assert(not args.cache)
 
+  tracked_by_id = ({}
+                  if args.track_by_custom_id and args.input_file.endswith('.csv')
+                  else None)
+
   img_paths = query(
     args.input_file,
     args.start_day,
@@ -969,6 +1008,7 @@ if __name__ == '__main__':
     args.update_exif,
     args.custom_id_field,
     args.custom_min_date_field,
+    tracked_by_id,
     args.skip_geo_file,
     args.num_threads,
     args.verbose,
@@ -976,6 +1016,23 @@ if __name__ == '__main__':
     args.skip_cached_frames,
     args.use_batches,
   )
+
+  if args.zip_dirs:
+    replace_dirs_with_zips(args.output_dir, args.verbose)
+
+  if tracked_by_id is not None and args.passthrough_csv_output:
+    output_path = os.path.join(args.output_dir, 'results.csv')
+    if args.verbose:
+      print(f'writing {output_path}')
+    write_csv_from_csv(
+      args.input_file,
+      output_path,
+      args.custom_id_field,
+      tracked_by_id,
+      args.custom_output_dir_field,
+      args.custom_output_date_field,
+      args.custom_output_success_field,
+    )
 
   if args.image_post_processing:
     if args.verbose:
