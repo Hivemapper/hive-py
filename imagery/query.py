@@ -14,7 +14,7 @@ from itertools import repeat
 from requests.adapters import HTTPAdapter, Retry
 from tqdm import tqdm
 from urllib.parse import quote
-from util import geo, stitching, write_csv_from_csv
+from util import geo, replace_dirs_with_zips, stitching, write_csv_from_csv
 from imagery.processing import clahe_smart_clip
 
 BATCH_SIZE = 10000
@@ -1015,8 +1015,7 @@ if __name__ == '__main__':
   )
 
   if args.zip_dirs:
-    # todo zip
-    pass
+    replace_dirs_with_zips(args.output_path, args.verbose)
 
   if tracked_by_id is not None and args.passthrough_csv_output:
     output_path = os.path.join(args.output_dir, 'results.csv')
