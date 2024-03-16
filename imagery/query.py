@@ -66,6 +66,7 @@ def post_cached(
   use_cache=True,
   skip_cached_frames=False,
   pbar=None,
+  custom_id=None,
 ):
   loc = None
   if use_cache:
@@ -110,6 +111,10 @@ def post_cached(
 
     resp = r.json()
     frames = resp.get('frames', [])
+
+    if custom_id is not None:
+      for frame in frames:
+        frame['id'] = custom_id
 
     if loc is not None:
       with open(loc, 'w') as f:
@@ -382,15 +387,12 @@ def query_imagery(
         use_cache,
         skip_cached_frames,
         pbar,
+        custom_id,
       )
       futures.append(future)
 
   for future in concurrent.futures.as_completed(futures):
     results = future.result()
-
-    if custom_id is not None:
-      for result in results:
-        result['id'] = custom_id
 
     frames += results
 
@@ -441,16 +443,12 @@ def query_latest_imagery(
       use_cache,
       skip_cached_frames,
       pbar,
+      custom_id,
     )
     futures.append(future)
 
   for future in concurrent.futures.as_completed(futures):
     results = future.result()
-
-    if custom_id is not None:
-      for result in results:
-        result['id'] = custom_id
-
     frames += results
 
   if pbar is not None:
@@ -485,7 +483,8 @@ def query_frames(
   if verbose:
     print(f'Querying {len(features)} features for imagery across {len(weeks)} weeks...')
   frames = query_imagery(
-    features, weeks,
+    features,
+    weeks,
     custom_ids,
     authorization,
     output_dir,
