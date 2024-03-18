@@ -18,7 +18,7 @@ def replace_dirs_with_zips(output_dir, verbose=False):
     new_path = p + '.zip'
     with ZipFile(new_path, 'w') as zf:
       for f in os.listdir(p):
-        zf.write(os.path.join(p, f), os.path.join(content, f))
+        zf.write(os.path.join(p, f), f)
     shutil.rmtree(p)
 
 def write_csv_from_csv(
