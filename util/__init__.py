@@ -2,6 +2,7 @@ import csv
 import os
 import shutil
 
+from datetime import datetime
 from tqdm import tqdm
 from zipfile import ZipFile
 
@@ -29,6 +30,7 @@ def write_csv_from_csv(
   custom_id_field,
   tracked_by_id,
   output_dir_field_name,
+  custom_date_formatting=None,
   output_date_field_name=None,
   success_field_name=None
 ):
@@ -65,7 +67,12 @@ def write_csv_from_csv(
         if success_id_idx > -1:
           row[success_id_idx] = True
         if output_date_idx > -1:
-          row[output_date_idx] = tracked_by_id.get(custom_id)
+          a_date = tracked_by_id.get(custom_id)
+          a_formatted_date = a_date
+          if custom_date_formatting is not None:
+            a_formatted_date = datetime.fromisoformat(a_formatted_date.split('.')[0])
+            a_formatted_date = a_formatted_date.strftime(custom_date_formatting)
+          row[output_date_idx] = a_formatted_date
       elif success_id_idx > -1:
         row[success_id_idx] = False
       writer.writerow(row)

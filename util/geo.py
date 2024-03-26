@@ -415,6 +415,7 @@ def transform_csv_to_geojson_polygons(
   width = DEFAULT_WIDTH,
   custom_id_field = None,
   custom_min_date_field = None,
+  custom_date_formatting=None,
   verbose = False
 ):
   mp_lim = min(
@@ -453,6 +454,11 @@ def transform_csv_to_geojson_polygons(
       lat = row[lat_idx]
       custom_id = None if custom_id_idx == -1 else row[custom_id_idx]
       custom_min_date = None if custom_min_date_field == -1 else row[custom_min_date_idx]
+      if custom_min_date is not None and custom_date_formatting is not None:
+        custom_min_date = datetime.datetime.strptime(
+          custom_min_date,
+          custom_date_formatting
+        ).strftime('%Y-%m-%d')
       coords.append((lon, lat, custom_id, custom_min_date))
 
   if verbose:

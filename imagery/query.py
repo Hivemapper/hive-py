@@ -768,6 +768,7 @@ def transform_input(
   width=DEFAULT_WIDTH,
   custom_id_field=None,
   custom_min_date_field=None,
+  custom_date_formatting=None,
   skip_geo_file=None,
   verbose=False,
   use_cache=True,
@@ -797,6 +798,7 @@ def transform_input(
       width,
       custom_id_field,
       custom_min_date_field,
+      custom_date_formatting,
       verbose,
     )
   elif geojson_file is None:
@@ -848,6 +850,7 @@ def query(
   update_exif=False,
   custom_id_field=None,
   custom_min_date_field=None,
+  custom_date_formatting=None,
   tracked_by_id=None,
   skip_geo_file=None,
   num_threads=DEFAULT_THREADS,
@@ -861,6 +864,7 @@ def query(
     width,
     custom_id_field,
     custom_min_date_field,
+    custom_date_formatting,
     skip_geo_file,
     verbose,
     use_cache,
@@ -962,6 +966,7 @@ if __name__ == '__main__':
   parser.add_argument('-M', '--merge_metadata', action='store_true')
   parser.add_argument('-I', '--custom_id_field', type=str)
   parser.add_argument('-S', '--custom_min_date_field', type=str)
+  parser.add_argument('-SF', '--custom_date_formatting', type=str)
   parser.add_argument('-Io', '--custom_output_dir_field', type=str)
   parser.add_argument('-Ib', '--custom_output_success_field', type=str)
   parser.add_argument('-Is', '--custom_output_date_field', type=str)
@@ -1008,6 +1013,7 @@ if __name__ == '__main__':
     args.update_exif,
     args.custom_id_field,
     args.custom_min_date_field,
+    args.custom_date_formatting,
     tracked_by_id,
     args.skip_geo_file,
     args.num_threads,
@@ -1030,6 +1036,7 @@ if __name__ == '__main__':
       args.custom_id_field,
       tracked_by_id,
       args.custom_output_dir_field,
+      args.custom_date_formatting,
       args.custom_output_date_field,
       args.custom_output_success_field,
     )

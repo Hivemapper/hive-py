@@ -42,6 +42,7 @@ options:
   -M, --merge_metadata
   -I CUSTOM_ID_FIELD, --custom_id_field CUSTOM_ID_FIELD
   -S CUSTOM_MIN_DATE_FIELD, --custom_min_date_field CUSTOM_MIN_DATE_FIELD
+  -SF CUSTOM_MIN_DATE_FORMATTING --custom_min_date_formatting CUSTOM_MIN_DATE_FORMATTING
   -Io CUSTOM_OUTPUT_DIR_FIELD, --custom_output_dir_field CUSTOM_OUTPUT_DIR_FIELD
   -Ib CUSTOM_OUTPUT_SUCCESS_FIELD, --custom_output_success_field CUSTOM_OUTPUT_SUCCESS_FIELD
   -Is CUSTOM_OUTPUT_DATE_FIELD, --custom_output_date_field CUSTOM_OUTPUT_DATE_FIELD
