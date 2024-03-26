@@ -5,7 +5,7 @@ import shutil
 from tqdm import tqdm
 from zipfile import ZipFile
 
-def replace_dirs_with_zips(output_dir, verbose=False):
+def replace_dirs_with_zips(output_dir, zip_images_only = False, verbose=False):
   if verbose:
     print(f'Compressing folders in {output_dir}...')
 
@@ -18,6 +18,8 @@ def replace_dirs_with_zips(output_dir, verbose=False):
     new_path = p + '.zip'
     with ZipFile(new_path, 'w') as zf:
       for f in os.listdir(p):
+        if zip_images_only and f.endswith('json'):
+          continue
         zf.write(os.path.join(p, f), f)
     shutil.rmtree(p)
 

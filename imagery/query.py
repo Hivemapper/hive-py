@@ -956,6 +956,7 @@ if __name__ == '__main__':
   parser.add_argument('-z', '--max_angle', type=float, default=DEFAULT_STITCH_MAX_LAG)
   parser.add_argument('-o', '--output_dir', type=str, required=True)
   parser.add_argument('-Z', '--zip_dirs', action='store_true')
+  parser.add_argument('-Zio', '--zip_images_only', action='store_true')
   parser.add_argument('-g', '--export_geojson', action='store_true')
   parser.add_argument('-w', '--width', type=int, default=DEFAULT_WIDTH)
   parser.add_argument('-M', '--merge_metadata', action='store_true')
@@ -1017,7 +1018,7 @@ if __name__ == '__main__':
   )
 
   if args.zip_dirs:
-    replace_dirs_with_zips(args.output_dir, args.verbose)
+    replace_dirs_with_zips(args.output_dir, args.zip_images_only, args.verbose)
 
   if tracked_by_id is not None and args.passthrough_csv_output:
     output_path = os.path.join(args.output_dir, 'results.csv')

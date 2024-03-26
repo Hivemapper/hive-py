@@ -36,6 +36,7 @@ options:
   -z MAX_ANGLE, --max_angle MAX_ANGLE
   -o OUTPUT_DIR, --output_dir OUTPUT_DIR
   -Z, --zip_dirs
+  -Zio, --zip_images_only
   -g, --export_geojson
   -w WIDTH, --width WIDTH
   -M, --merge_metadata
