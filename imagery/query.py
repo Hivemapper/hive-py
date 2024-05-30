@@ -497,7 +497,7 @@ def query_frames(
 
   return filtered_frames
 
-def load_features(geojson_file):
+def load_features(geojson_file, verbose = False):
   features = []
   with open(geojson_file, 'r') as f:
     fc = json.load(f)
@@ -510,7 +510,7 @@ def load_features(geojson_file):
     custom_ids.append(properties.get('id', None))
     min_dates.append(properties.get('min_date', None))
 
-  features = [geo.convert_to_geojson_poly(f) for f in features]
+  features = [geo.convert_to_geojson_poly(f, DEFAULT_WIDTH, verbose) for f in features]
   features = [feature for feature in features if feature is not None]
   new_features = []
   for feature in features:
@@ -870,7 +870,7 @@ def query(
     use_cache,
   )
 
-  features, custom_ids, min_dates = load_features(geojson_file)
+  features, custom_ids, min_dates = load_features(geojson_file, verbose)
 
   if not use_batches:
     _query(

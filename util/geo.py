@@ -299,7 +299,7 @@ def geojson_linestring_to_poly(
       },
     }
 
-def chunk_by_area(feature, limit = AREA_LIMIT):
+def chunk_by_area(feature, limit = AREA_LIMIT, verbose = False):
   try:
     geom = feature.get('geometry', feature)
     if area(geom) < AREA_LIMIT:
@@ -318,8 +318,9 @@ def chunk_by_area(feature, limit = AREA_LIMIT):
       "geometry": geometry,
     } for geometry in geoms]
   except Exception as e:
-    print(f'Geometry: {geom}')
-    print(e)
+    if verbose:
+      print(f'Geometry: {geom}')  
+    raise
 
 # from https://gis.stackexchange.com/questions/435879/python-shapely-split-a-complex-line-at-self-intersections
 def find_self_intersection(line):
@@ -333,7 +334,7 @@ def find_self_intersection(line):
         intersection = MultiPoint(intersection)
     return intersection
 
-def convert_to_geojson_poly(feature, width = DEFAULT_WIDTH):
+def convert_to_geojson_poly(feature, width = DEFAULT_WIDTH, verbose = False):
   geom = feature.get('geometry', feature)
   t = geom['type']
   if t == 'LineString':
@@ -356,15 +357,15 @@ def convert_to_geojson_poly(feature, width = DEFAULT_WIDTH):
   elif t == 'Point':
     return geojson_point_to_poly(geom, width)
   elif t == 'Polygon' or t == 'MultiPolygon':
-    return chunk_by_area(feature)
+    return chunk_by_area(feature, AREA_LIMIT, verbose)
   elif t == 'GeometryCollection':
-    polys = [convert_to_geojson_poly(p, width) for p in geom.get('geometries', [])]
+    polys = [convert_to_geojson_poly(p, width, verbose) for p in geom.get('geometries', [])]
     polys = flat_list(polys)
     spolys = [shapely.from_geojson(json.dumps(p)) for p in polys]
     mpoly = unary_union(spolys)
     if not mpoly.is_valid:
       mpoly = make_valid(mpoly)
-    return convert_to_geojson_poly(json.loads(shapely.to_geojson(mpoly)), width)
+    return convert_to_geojson_poly(json.loads(shapely.to_geojson(mpoly)), width, verbose)
   else:
     raise Exception(f'Unsupported type: {t}')
 
@@ -383,9 +384,9 @@ def transform_shapefile_to_geojson_polygons(file_path, out_path = None, width = 
   if verbose:
     polygons = []
     for f in tqdm(features):
-      polygons.append(convert_to_geojson_poly(f, width))
+      polygons.append(convert_to_geojson_poly(f, width, verbose))
   else:
-    polygons = [convert_to_geojson_poly(f, width) for f in features]
+    polygons = [convert_to_geojson_poly(f, width, verbose) for f in features]
 
   polygons = [polygon for polygon in polygons if polygon is not None]
   polygons = flat_list(polygons)
@@ -397,7 +398,7 @@ def transform_shapefile_to_geojson_polygons(file_path, out_path = None, width = 
   if not polygons.is_valid:
     polygons = make_valid(polygons)
   polygons = json.loads(shapely.to_geojson(polygons))
-  polygons = [convert_to_geojson_poly(polygons, width)]
+  polygons = [convert_to_geojson_poly(polygons, width, verbose)]
   polygons = [p for p in polygons if p is not None]
   polygons = flat_list(polygons)
 
