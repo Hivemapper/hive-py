@@ -300,22 +300,26 @@ def geojson_linestring_to_poly(
     }
 
 def chunk_by_area(feature, limit = AREA_LIMIT):
-  geom = feature.get('geometry', feature)
-  if area(geom) < AREA_LIMIT:
-    return feature
+  try:
+    geom = feature.get('geometry', feature)
+    if area(geom) < AREA_LIMIT:
+      return feature
 
-  shapely_poly = shapely.from_geojson(json.dumps(feature))
-  geoms = [
-    json.loads(elt) for elt in shapely.to_geojson(
-      katana(shapely_poly, 0.01)
-    ).tolist()
-  ]
+    shapely_poly = shapely.from_geojson(json.dumps(feature))
+    geoms = [
+      json.loads(elt) for elt in shapely.to_geojson(
+        katana(shapely_poly, 0.01)
+      ).tolist()
+    ]
 
-  return [{
-    "type": "Feature",
-    "properties": {},
-    "geometry": geometry,
-  } for geometry in geoms]
+    return [{
+      "type": "Feature",
+      "properties": {},
+      "geometry": geometry,
+    } for geometry in geoms]
+  except Exception as e:
+    print(f'Geometry: {geom}')
+    print(e)
 
 # from https://gis.stackexchange.com/questions/435879/python-shapely-split-a-complex-line-at-self-intersections
 def find_self_intersection(line):
