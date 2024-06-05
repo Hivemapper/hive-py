@@ -39,6 +39,7 @@ options:
   -Zio, --zip_images_only
   -g, --export_geojson
   -w WIDTH, --width WIDTH
+  -m MOUNT, --mount MOUNT
   -M, --merge_metadata
   -I CUSTOM_ID_FIELD, --custom_id_field CUSTOM_ID_FIELD
   -S CUSTOM_MIN_DATE_FIELD, --custom_min_date_field CUSTOM_MIN_DATE_FIELD

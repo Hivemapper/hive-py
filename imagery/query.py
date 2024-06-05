@@ -353,6 +353,7 @@ def query_imagery(
   custom_ids,
   authorization,
   local_dir,
+  mount = None,
   num_threads=DEFAULT_RETRIES,
   verbose=False,
   use_cache=True,
@@ -378,6 +379,8 @@ def query_imagery(
 
     for week in weeks:
       url = f'{IMAGERY_API_URL}?week={week}'
+      if mount:
+        url += f'&mount={mount}'
       future = executor.submit(
         post_cached,
         url,
@@ -407,6 +410,7 @@ def query_latest_imagery(
   min_days,
   authorization,
   local_dir,
+  mount=None,
   num_threads=DEFAULT_THREADS,
   verbose=False,
   use_cache=True,
@@ -431,8 +435,13 @@ def query_latest_imagery(
     assert(area(data) <= MAX_AREA)
 
     url = LATEST_IMAGERY_API_URL
+    params_added = False
     if min_day:
       url += f'?min_week={min_day}'
+      params_added = True
+    if mount:
+      pchar = '&' if params_added else '?'
+      url += f'{pchar}mount={mount}'
 
     future = executor.submit(
       post_cached,
@@ -463,6 +472,7 @@ def query_frames(
   end_day,
   output_dir,
   authorization,
+  mount = None,
   num_threads = DEFAULT_THREADS,
   verbose = False,
   use_cache = True,
@@ -488,6 +498,7 @@ def query_frames(
     custom_ids,
     authorization,
     output_dir,
+    mount,
     num_threads,
     verbose,
     use_cache,
@@ -531,6 +542,7 @@ def query_latest_frames(
   min_dates,
   output_dir,
   authorization,
+  mount = None,
   num_threads = DEFAULT_THREADS,
   verbose = False,
   use_cache = True,
@@ -544,6 +556,7 @@ def query_latest_frames(
     min_dates,
     authorization,
     output_dir,
+    mount,
     num_threads,
     verbose,
     use_cache,
@@ -629,6 +642,7 @@ def _query(
   end_day,
   output_dir,
   authorization,
+  mount=None,
   latest=False,
   export_geojson=False,
   should_stitch=False,
@@ -655,6 +669,7 @@ def _query(
       min_dates,
       output_dir,
       authorization,
+      mount,
       num_threads,
       verbose,
       use_cache,
@@ -668,6 +683,7 @@ def _query(
       end_day,
       output_dir,
       authorization,
+      mount,
       num_threads,
       verbose,
       use_cache,
@@ -838,6 +854,7 @@ def query(
   end_day,
   output_dir,
   authorization,
+  mount=None,
   latest=False,
   export_geojson=False,
   should_stitch=False,
@@ -881,6 +898,7 @@ def query(
       end_day,
       output_dir,
       authorization,
+      mount,
       latest,
       export_geojson,
       should_stitch,
@@ -925,6 +943,7 @@ def query(
       end_day,
       output_dir,
       authorization,
+      mount,
       latest,
       export_geojson,
       should_stitch,
@@ -963,6 +982,7 @@ if __name__ == '__main__':
   parser.add_argument('-Zio', '--zip_images_only', action='store_true')
   parser.add_argument('-g', '--export_geojson', action='store_true')
   parser.add_argument('-w', '--width', type=int, default=DEFAULT_WIDTH)
+  parser.add_argument('-m', '--mount', type=str)
   parser.add_argument('-M', '--merge_metadata', action='store_true')
   parser.add_argument('-I', '--custom_id_field', type=str)
   parser.add_argument('-S', '--custom_min_date_field', type=str)
@@ -1001,6 +1021,7 @@ if __name__ == '__main__':
     args.end_day,
     args.output_dir,
     args.authorization,
+    args.mount,
     args.latest,
     args.export_geojson,
     args.stitch,
