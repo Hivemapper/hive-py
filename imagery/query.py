@@ -10,7 +10,7 @@ import uuid
 from area import area
 from datetime import datetime, timedelta
 from exiftool import ExifToolHelper
-from itertools import repeat
+from itertools import repeat, zip_longest
 from requests.adapters import HTTPAdapter, Retry
 from tqdm import tqdm
 from urllib.parse import quote
@@ -430,7 +430,7 @@ def query_latest_imagery(
   executor = concurrent.futures.ThreadPoolExecutor(max_workers=threads)
   futures = []
 
-  for feature, custom_id, min_day in zip(features, custom_ids, min_days):
+  for feature, custom_id, min_day in zip_longest(features, custom_ids, min_days):
     data = feature.get('geometry', feature)
     assert(area(data) <= MAX_AREA)
 
