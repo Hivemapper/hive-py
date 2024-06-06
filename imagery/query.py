@@ -373,7 +373,7 @@ def query_imagery(
   executor = concurrent.futures.ThreadPoolExecutor(max_workers=threads)
   futures = []
 
-  for feature, custom_id in zip(features, custom_ids):
+  for feature, custom_id in zip_longest(features, custom_ids):
     data = feature.get('geometry', feature)
     assert(area(data) <= MAX_AREA)
 
