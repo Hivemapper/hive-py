@@ -10,4 +10,5 @@ scipy==1.10.1
 shapely==2.0.1
 tqdm==4.66.1
 timezonefinder==6.2.0
+python-dateutil
 
