@@ -575,6 +575,7 @@ def frames_to_linestring(frames, ident):
     "type": "Feature",
     "properties": {
       "id": ident,
+      "sequence": frames[0].get('sequence'),
     },
     "geometry": {
       "type": "LineString",
