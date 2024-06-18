@@ -90,6 +90,12 @@ def post_cached(
 
   with request_session.post(url, data=json.dumps(data), headers=headers) as r:
     try:
+      try:
+        if "error" in r.json():
+          http_json_error_msg = r.json()["error"]
+          print (http_json_error_msg)
+      except json.JSONDecodeError:
+        pass
       r.raise_for_status()
     except requests.exceptions.HTTPError as e:
       if e.response.status_code == 500:
