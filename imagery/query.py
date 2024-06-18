@@ -514,6 +514,11 @@ def load_features(geojson_file, verbose = False):
     fc = json.load(f)
     features += fc.get('features', [fc])
 
+  for i in range(len(features)):
+    if features[i].get('geometry', features[i]).get('type') == 'MultiPolygon':
+      features[i] = geo.explode_multipolygon(features[i])
+  features = geo.flat_list(features)
+
   custom_ids = []
   min_dates = []
   for feature in features:

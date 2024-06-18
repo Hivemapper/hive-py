@@ -34,6 +34,19 @@ def flat_list(features):
       new_features.append(feature)
   return new_features
 
+def explode_multipolygon(mp):
+  coords = mp.get('geometry', mp).get('coordinates')
+  n = len(coords)
+  c = MAX_MULTIPOLYGON_CARDINALITY
+  m = math.ceil(n / c)
+  mps = []
+  for i in range(m):
+    mps.append({
+      'type': 'MultiPolygon',
+      'coordinates': coords[i * c : (i + 1) * c]
+      })
+  return mps
+
 # from https://github.com/shapely/shapely/issues/1068#issuecomment-770296614
 def complex_split(geom: LineString, splitter):
     """Split a complex linestring by another geometry without splitting at
