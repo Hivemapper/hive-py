@@ -1009,8 +1009,6 @@ def probe(
 
   probe_data = None
 
-  print(url)
-
   with request_session.post(url, data=json.dumps(data), headers=headers) as r:
     r.raise_for_status()
     probe_data = r.json()
