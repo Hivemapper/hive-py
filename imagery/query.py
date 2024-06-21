@@ -28,9 +28,11 @@ DEFAULT_THREADS = 20
 DEFAULT_WIDTH = 25
 IMAGERY_API_URL = 'https://hivemapper.com/api/developer/imagery/poly'
 LATEST_IMAGERY_API_URL = 'https://hivemapper.com/api/developer/latest/poly'
+PROBE_API_URL = 'https://hivemapper.com/api/developer/probe'
 RENEW_ASSET_URL = 'https://hivemapper.com/api/developer/renew/';
 MAX_API_THREADS = 16
 MAX_AREA = 1000 * 1000 * 4 # 4km^2
+MAX_PROBE_AREA = 1000 * 1000 # 1km^2
 STATUS_FORCELIST = [429, 502, 503, 504, 524]
 VALID_POST_PROCESSING_OPTS = ['clahe-smart-clip']
 
@@ -979,6 +981,49 @@ def query(
       with open(loc, 'w') as f:
         f.write(datetime.now().isoformat())
 
+def probe(
+  input_file,
+  output_dir,
+  authorization,
+  mount,
+  start_day=None,
+  width=DEFAULT_WIDTH,
+  verbose=False,
+):
+  features, _, _ = load_features(input_file, verbose)
+
+  if len(features) > 1:
+    raise ValueError(f'Can only support a single GeoJSON feature')
+
+  data = features[0].get('geometry', features[0])
+  assert(area(data) <= MAX_PROBE_AREA)
+
+  headers = {
+    "content-type": "application/json",
+    "authorization": f'Basic {authorization}',
+  }
+
+  url = PROBE_API_URL
+  if start_day:
+    url += f'?min_week={start_day.strftime("%Y-%m-%d")}'
+
+  probe_data = None
+
+  with request_session.post(url, data=json.dumps(data), headers=headers) as r:
+    r.raise_for_status()
+    probe_data = r.json()
+
+  if verbose:
+    print(probe_data)
+
+  os.makedirs(output_dir, exist_ok=True)
+  now = datetime.now().isoformat()
+  local_path = os.path.join(output_dir, f'probe_{now}.json')
+  with open(local_path, 'w') as f:
+    json.dump(probe_data, f)
+
+  print(f'Saved probe data to {local_path}')
+
 if __name__ == '__main__':
   parser = argparse.ArgumentParser()
   parser.add_argument('-i', '--input_file', type=str, required=True)
@@ -1014,7 +1059,20 @@ if __name__ == '__main__':
   parser.add_argument('-C', '--cache', action='store_true')
   parser.add_argument('-b', '--use_batches', action='store_true')
   parser.add_argument('-N', '--skip_cached_frames', action='store_true')
+  parser.add_argument('-q', '--probe', action='store_true')
   args = parser.parse_args()
+
+  if args.probe:
+    probe(
+      args.input_file,
+      args.output_dir,
+      args.authorization,
+      args.mount,
+      args.start_day,
+      args.width,
+      args.verbose,
+    )
+    exit()
 
   if args.cache:
     setup_cache(args.verbose)
