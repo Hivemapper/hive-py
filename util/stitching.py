@@ -61,6 +61,18 @@ def seqs_lag(seq_a, seq_b):
 
   return (t1 - t0).seconds
 
+def frame_azi(a, b):
+  a0 = a.get('position')
+  b0 = b.get('position')
+
+  a0_lon = a0.get('lon')
+  a0_lat = a0.get('lat')
+  b0_lon = b0.get('lon')
+  b0_lat = b0.get('lat')
+
+  azi = Geodesic.WGS84.Inverse(a0_lat, a0_lon, b0_lat, b0_lon).get('azi2')
+  return azi
+
 def seqs_azi_delta(seq_a, seq_b):
   a0 = seq_a[-2].get('position')
   a1 = seq_a[-1].get('position')
@@ -194,6 +206,13 @@ def stitch(
   if verbose:
     print(f'Stitched {len(stitched)} paths!')
     print(f'Skipped {len(skipped)} paths.')
+
+  for sequence in stitched:
+    for i in range(1, len(sequence)):
+      azi = frame_azi(sequence[i], sequence[i - 1])
+      sequence[i]['heading'] = azi
+      if i == 1:
+        sequence[0]['heading'] = azi
 
   return stitched + skipped
 
