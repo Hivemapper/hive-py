@@ -15,7 +15,7 @@ from requests.adapters import HTTPAdapter, Retry
 from tqdm import tqdm
 from urllib.parse import quote
 from util import geo, replace_dirs_with_zips, stitching, write_csv_from_csv
-from imagery.processing import clahe_smart_clip
+from imagery.processing import clahe_smart_clip, undistort_via_exif
 
 BATCH_SIZE = 10000
 CACHE_DIR = '.hivepy_cache'
@@ -34,7 +34,7 @@ MAX_API_THREADS = 16
 MAX_AREA = 1000 * 1000 * 4 # 4km^2
 MAX_PROBE_AREA = 1000 * 1000 # 1km^2
 STATUS_FORCELIST = [429, 502, 503, 504, 524]
-VALID_POST_PROCESSING_OPTS = ['clahe-smart-clip']
+VALID_POST_PROCESSING_OPTS = ['clahe-smart-clip', 'undistort']
 
 request_session = requests.Session()
 retries = Retry(
@@ -904,7 +904,7 @@ def query(
   features, custom_ids, min_dates = load_features(geojson_file, verbose)
 
   if not use_batches:
-    _query(
+    img_paths = _query(
       features,
       custom_ids,
       min_dates,
@@ -932,7 +932,9 @@ def query(
       use_cache,
       skip_cached_frames,
     )
-    return
+    return img_paths
+
+  img_paths = []
 
   for i in range(0, len(features), BATCH_SIZE):
     if verbose:
@@ -949,7 +951,7 @@ def query(
           print('Cache hit -- skipping batch.')
         continue
    
-    _query(
+    img_paths += _query(
       features[i:i + BATCH_SIZE],
       custom_ids[i:i + BATCH_SIZE],
       min_dates[i:i + BATCH_SIZE],
@@ -980,6 +982,8 @@ def query(
     if loc is not None:
       with open(loc, 'w') as f:
         f.write(datetime.now().isoformat())
+
+  return img_paths
 
 def probe(
   input_file,
@@ -1114,8 +1118,35 @@ if __name__ == '__main__':
     args.use_batches,
   )
 
-  if args.zip_dirs:
-    replace_dirs_with_zips(args.output_dir, args.zip_images_only, args.verbose)
+  if args.image_post_processing:
+    if args.verbose:
+      print(f'post processing {len(img_paths)} with {args.image_post_processing}...')
+
+    def post_process(img_path, image_post_processing, verbose):
+      if args.image_post_processing == 'clahe-smart-clip':
+        clahe_smart_clip(img_path, img_path, verbose)
+      elif args.image_post_processing == 'undistort':
+        assert(args.camera_intrinsics)
+        assert(args.update_exif)
+        undistort_via_exif(img_path, img_path, verbose)
+
+    executor = concurrent.futures.ThreadPoolExecutor(max_workers=args.num_threads)
+    futures = []
+
+    for img_path in img_paths:
+      future = executor.submit(
+        post_process,
+        img_path,
+        img_path,
+        args.verbose,
+      )
+      futures.append(future)
+
+    for future in concurrent.futures.as_completed(futures):
+      try:
+        results = future.result()
+      except Exception as e:
+        print(e)
 
   if tracked_by_id is not None and args.passthrough_csv_output:
     output_path = os.path.join(args.output_dir, 'results.csv')
@@ -1132,16 +1163,8 @@ if __name__ == '__main__':
       args.custom_output_success_field,
     )
 
-  if args.image_post_processing:
-    if args.verbose:
-      print(f'post processing {len(img_paths)} with {args.image_post_processing}...')
-
-    def post_process(img_path, image_post_processing, verbose):
-      if image_post_processing == 'clahe-smart-clip':
-        clahe_smart_clip(img_path, img_path, verbose)
-
-    with concurrent.futures.ThreadPoolExecutor(max_workers=args.num_threads) as executor:
-      executor.map(post_process, img_paths, repeat(args.image_post_processing), repeat(args.verbose))
+  if args.zip_dirs:
+    replace_dirs_with_zips(args.output_dir, args.zip_images_only, args.verbose)
 
   # if args.cache:
   #   clear_cache(args.verbose)
