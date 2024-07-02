@@ -6,6 +6,7 @@ from exiftool import ExifToolHelper
 
 TAGS_TO_KEEP = [
   'EXIF:DateTimeOriginal',
+  'EXIF:Orientation',
   'EXIF:FocalLength',
   'EXIF:SubSecTimeOriginal',
   'EXIF:GPSVersionID',
