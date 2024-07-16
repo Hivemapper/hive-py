@@ -1083,7 +1083,7 @@ if __name__ == '__main__':
 
   if args.image_post_processing:
     assert(args.image_post_processing in VALID_POST_PROCESSING_OPTS)
-    assert(not args.cache)
+    assert(not args.skip_cached_frames)
 
   tracked_by_id = ({}
                   if args.track_by_custom_id and args.input_file.endswith('.csv')
@@ -1123,12 +1123,13 @@ if __name__ == '__main__':
       print(f'post processing {len(img_paths)} with {args.image_post_processing}...')
 
     def post_process(img_path, image_post_processing, verbose):
+      cache_dir = CACHE_DIR if args.cache else None
       if args.image_post_processing == 'clahe-smart-clip':
-        clahe_smart_clip(img_path, img_path, verbose)
+        clahe_smart_clip(img_path, img_path, verbose, cache_dir)
       elif args.image_post_processing == 'undistort':
         assert(args.camera_intrinsics)
         assert(args.update_exif)
-        undistort_via_exif(img_path, img_path, verbose)
+        undistort_via_exif(img_path, img_path, verbose, cache_dir)
 
     executor = concurrent.futures.ThreadPoolExecutor(max_workers=args.num_threads)
     futures = []

@@ -1,7 +1,10 @@
 import cv2 as cv
+import hashlib
 import numpy as np
+import os
 import subprocess
 
+from datetime import datetime
 from exiftool import ExifToolHelper
 
 TAGS_TO_KEEP = [
@@ -75,10 +78,29 @@ def brightness_stats(img_path, verbose = False):
 
   return vals
 
+def is_processed(img_path, process_name, cache_dir):
+  loc = None
+  with open(img_path, 'rb') as f:
+    h = hashlib.md5(f.read()).hexdigest()
+    loc = os.path.join(cache_dir, f'{process_name}:{h}')
+
+  return os.path.isfile(loc)
+
+def cache_processed_status(img_path, process_name, cache_dir):
+  h = None
+  with open(img_path, 'rb') as f:
+    h = hashlib.md5(f.read()).hexdigest()
+
+  loc = os.path.join(cache_dir, f'{process_name}:{h}')
+
+  with open(loc, 'w') as f:
+    f.write(datetime.now().isoformat())
+
 def clahe_smart_clip(
   img_path,
   out_path,
   verbose = False,
+  cache_dir = None,
   x_pct = 15,
   y_pct = 30,
   bins = 512,
@@ -87,6 +109,13 @@ def clahe_smart_clip(
   from "A Generic Image Processing Pipeline for Enhancing Accuracy
     and Robustness of Visual Odometry"
   """
+  if cache_dir:
+    was_processed = is_processed(img_path, 'clahe', cache_dir)
+    if was_processed:
+      if verbose:
+        print(f'Using cached version...')
+      return
+
   vals = brightness_stats(img_path, verbose)
   _min = vals['min']
   _max = vals['max']
@@ -97,12 +126,24 @@ def clahe_smart_clip(
 
   clahe(img_path, out_path, x_pct, y_pct, bins, clip, verbose)
 
+  if cache_dir:
+    cache_processed_status(img_path, 'clahe', cache_dir)
+
 def undistort_via_exif(
   img_path,
   out_path,
   verbose = False,
+  cache_dir = None
 ):
+  if cache_dir:
+    was_processed = is_processed(img_path, 'undistort', cache_dir)
+    if was_processed:
+      if verbose:
+        print(f'Using cached version...')
+      return True
+
   if verbose:
+    print(img_path)
     print(f'Undistorting {img_path}...')
 
   f = 0.0
@@ -148,5 +189,8 @@ def undistort_via_exif(
       tags=tags,
       params=['-overwrite_original']
     )
+
+  if cache_dir:
+    cache_processed_status(img_path, 'undistort', cache_dir)
 
   return True
