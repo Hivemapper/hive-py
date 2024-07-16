@@ -1083,6 +1083,7 @@ if __name__ == '__main__':
 
   if args.image_post_processing:
     assert(args.image_post_processing in VALID_POST_PROCESSING_OPTS)
+    assert(not args.skip_cached_frames)
 
   tracked_by_id = ({}
                   if args.track_by_custom_id and args.input_file.endswith('.csv')
@@ -1118,7 +1119,6 @@ if __name__ == '__main__':
   )
 
   if args.image_post_processing:
-    assert(not args.skip_cached_frames)
     if args.verbose:
       print(f'post processing {len(img_paths)} with {args.image_post_processing}...')
 
