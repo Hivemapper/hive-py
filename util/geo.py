@@ -471,7 +471,7 @@ def transform_csv_to_geojson_polygons(
       lon = row[lon_idx]
       lat = row[lat_idx]
       custom_id = None if custom_id_idx == -1 else row[custom_id_idx]
-      custom_min_date = None if custom_min_date_field == -1 else row[custom_min_date_idx]
+      custom_min_date = None if custom_min_date_field is None else row[custom_min_date_idx]
       if custom_min_date is not None and custom_date_formatting is not None:
         custom_min_date = datetime.datetime.strptime(
           custom_min_date,
