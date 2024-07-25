@@ -2,7 +2,14 @@
 
 ## Install
 
-Clone locally and run
+
+Method: PyPi
+
+```
+pip install hivemapper-python
+```
+
+Method: Clone locally and run
 
 ```
 pip install -r requirements.txt
