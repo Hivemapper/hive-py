@@ -27,6 +27,6 @@ dependencies = {file = ["requirements.txt"]}
 include-package-data = false
 
 [tool.setuptools.packages.find]
-include = ["account*", "imagery*", "util*", "README.md", "__init__.py", "requirements.txt", "test_feature.json", "test_feature_col.json"]
+include = ["account*", "imagery*", "burst*", "util*", "README.md", "__init__.py", "requirements.txt", "test_feature.json", "test_feature_col.json"]
 exclude = ["docs*", "tests*"]
 
