@@ -67,7 +67,18 @@ options:
   -b, --use_batches
   -N, --skip_cached_frames
 ```
+### Bursts CLI
 
+```
+> python -m burts.query
+usage: query.py [-h] -i INPUT_FILE -a AUTHORIZAITON
+
+options:
+  -h, --help            show this help message and exit
+  -i INPUT_FILE, --input_file INPUT_FILE
+  -a AUTHORIZATION, --authorization AUTHORIZATION
+  -v, --verbose
+```
 ### Python API
 
 **Query and download**
@@ -80,6 +91,15 @@ frames = query_frames(geojson_file, start_day, end_day, output_dir, authorizatio
 
 # download the content into folders grouped by its session id
 download_files(frames, output_dir)
+```
+
+**Create Honey Burst**
+```
+from bursts import create_bursts
+
+# make the API call to create new bursts by given geojson polygons
+# requires polygon type for each of the location
+burst_results = create_burts(geojson_file, authorization)
 ```
 
 ## Example

@@ -29,7 +29,7 @@ DEFAULT_WIDTH = 25
 IMAGERY_API_URL = 'https://hivemapper.com/api/developer/imagery/poly'
 LATEST_IMAGERY_API_URL = 'https://hivemapper.com/api/developer/latest/poly'
 PROBE_API_URL = 'https://hivemapper.com/api/developer/probe'
-RENEW_ASSET_URL = 'https://hivemapper.com/api/developer/renew/';
+RENEW_ASSET_URL = 'https://hivemapper.com/api/developer/renew/'
 MAX_API_THREADS = 16
 MAX_AREA = 1000 * 1000 * 4 # 4km^2
 MAX_PROBE_AREA = 1000 * 1000 # 1km^2
@@ -102,7 +102,7 @@ def post_cached(
     except requests.exceptions.HTTPError as e:
       if e.response.status_code == 500:
         if verbose:
-          print('Encountered a server error, skipping:');
+          print('Encountered a server error, skipping:')
           print(e)
         if pbar:
           pbar.update(1)
@@ -111,7 +111,7 @@ def post_cached(
         raise e
     except requests.exceptions.RetryError as e:
       if verbose:
-        print('Encountered a server error, skipping:');
+        print('Encountered a server error, skipping:')
         print(e)
       if pbar:
         pbar.update(1)
