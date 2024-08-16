@@ -14,7 +14,7 @@ if __name__ == "__main__":
     parser.add_argument('-h', '--help', action='help', default=argparse.SUPPRESS,
                     help='Input the user name and api key to return a base64 encoded string for all Hive-Py API requests.')
 
-    parser.add_argument('-u', '--user_name', type=str, required=True, help="User name of the account listed on profile: https://hivemapper.com/account/profile")
+    parser.add_argument('-u', '--user_name', type=str, required=True, help="User name of the account listed on profile: https://hivemapper.com/account/profile. Ensure the user name is delimited by hyphens. (i.e. 'apple banana charlie' -> 'apple-banana-charlie')")
     parser.add_argument('-k', '--api_key', type=str, required=True, help="Generate an API key here: https://hivemapper.com/console/developers/api-key")
 
     args = parser.parse_args()
