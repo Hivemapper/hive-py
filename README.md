@@ -117,6 +117,12 @@ python -m imagery.query -v -M --input_file "test_feature.json" --start_day "2023
 python -m imagery.query -v -M -sg 089283082abbffff0423fcc946ad8fec --start_day "2024-07-28" --end_day "2024-07-28" --output_dir "temp" --authorization <your encoded key string>
 ```
 
+### Query imagery for multiple OSM road segment
+
+```
+python -m imagery.query -v -M -sg 089283082abbffff0423fcc946ad8fec 088283082abfffff0467f4b6b725f9af --start_day "2024-07-28" --end_day "2024-07-28" --output_dir "temp" --authorization <your encoded key string>
+```
+
 ### Query imagery for a GeoJSON Polygon Feature, use cache for resumable, use batches
 
 ```
