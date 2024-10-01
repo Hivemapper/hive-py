@@ -473,7 +473,6 @@ def query_latest_imagery(
 
   return frames
 
-# TODO implement new route for latest, current latest url doesn't support segment id
 def query_latest_imagery_with_segment_ids(
   segment_ids,
   custom_ids,
@@ -499,9 +498,9 @@ def query_latest_imagery_with_segment_ids(
   threads = min(MAX_API_THREADS, num_threads)
   executor = concurrent.futures.ThreadPoolExecutor(max_workers=threads)
   futures = []
+  assert(len(segment_ids) <= MAX_API_THREADS)
 
   for segment_id, custom_id, min_day in zip_longest(segment_ids, custom_ids, min_days):
-    #TODO check max segment ids length
     data = segment_id
     url = LATEST_IMAGERY_API_URL
     params_added = False
@@ -558,11 +557,10 @@ def query_imagery_with_segment_ids(
   threads = min(MAX_API_THREADS, num_threads)
   executor = concurrent.futures.ThreadPoolExecutor(max_workers=threads)
   futures = []
+  assert(len(segment_ids) <= MAX_API_THREADS)
 
   for segment_id, custom_id in zip_longest(segment_ids, custom_ids):
     data = {'segmentId': segment_id}
-    assert(area(data) <= MAX_AREA)
-
     for week in weeks:
       url = f'{IMAGERY_API_URL}?week={week}'
       if mount:
@@ -740,8 +738,6 @@ def query_latest_frames(
 
 def _query_segment_imagery(      
   segment_ids, 
-  custom_ids,
-  min_dates,
   start_day,
   end_day,
   output_dir,
@@ -765,9 +761,11 @@ def _query_segment_imagery(
   verbose,
   use_cache,
   skip_cached_frames,
+  custom_ids = [],
+  min_dates = [], 
 ):
   if latest:
-    frames_raw = query_latest_frames(
+    frames_raw = query_latest_imagery_with_segment_ids(
       segment_ids,
       custom_ids,
       min_dates,
@@ -780,7 +778,7 @@ def _query_segment_imagery(
       skip_cached_frames,
     )
   else:
-    frames_raw = query_frames(
+    frames_raw = query_frames_with_segment_ids(
       segment_ids,
       custom_ids,
       start_day,
@@ -1198,8 +1196,6 @@ def query(
     #handle segment id endpoint, no transformation needed
     image_path = _query_segment_imagery(
       segment_ids,
-      custom_ids,
-      min_dates,
       start_day,
       end_day,
       output_dir,
@@ -1405,11 +1401,10 @@ if __name__ == '__main__':
   parser.add_argument('-q', '--probe', action='store_true')
   args = parser.parse_args()
 
- 
- # TODO require one or the other
-  if not args.input_file or not args.segment_ids:
+ # require either 
+  if (args.input_file == None) and (args.segment_ids== None):
     # throw error that requires either one
-    print('Please provide either an input file or segment ids')
+    print('Please provide either an input geojson file or segment ids')
     exit()
 
   if args.input_file and args.probe:
