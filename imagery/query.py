@@ -16,6 +16,7 @@ from tqdm import tqdm
 from urllib.parse import quote
 from util import geo, replace_dirs_with_zips, stitching, write_csv_from_csv
 from imagery.processing import clahe_smart_clip, undistort_via_exif
+from urllib.parse import urlencode
 
 BATCH_SIZE = 10000
 CACHE_DIR = '.hivepy_cache'
@@ -503,13 +504,15 @@ def query_latest_imagery_with_segment_ids(
   for segment_id, custom_id, min_day in zip_longest(segment_ids, custom_ids, min_days):
     data = segment_id
     url = LATEST_IMAGERY_API_URL
-    params_added = False
+    params = {}
+
     if min_day:
-      url += f'?min_week={min_day}'
-      params_added = True
+        params['min_week'] = min_day
     if mount:
-      pchar = '&' if params_added else '?'
-      url += f'{pchar}mount={mount}'
+        params['mount'] = mount
+
+    if params:
+        url += f'?{urlencode(params)}'
 
     future = executor.submit(
       post_cached,
@@ -532,6 +535,7 @@ def query_latest_imagery_with_segment_ids(
     pbar.close()
 
   return frames
+
 def query_imagery_with_segment_ids(
   segment_ids,
   weeks,
