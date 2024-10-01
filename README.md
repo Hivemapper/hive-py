@@ -141,8 +141,6 @@ python -m imagery.query -v -M -g --input_file "test_feature_col.json" --start_da
 python -m imagery.query -v -M -k -E --input_file "test_feature.json" --start_day "2023-07-28" --end_day "2023-07-28" --output_dir "temp" --authorization <your encoded key string>
 ```
 
-
-
 `Focal Length` is encoded in pixel units (i.e., not mm)
 `Lens` is encoded as `<k1> <k2>`
 
