@@ -34,6 +34,7 @@ usage: query.py [-h] -i INPUT_FILE [-s START_DAY] [-e END_DAY] [-L] [-x] [-d MAX
 options:
   -h, --help            show this help message and exit
   -i INPUT_FILE, --input_file INPUT_FILE
+  -sg SEGMENT_IDS, --segment_ids SEGMENT_IDS
   -s START_DAY, --start_day START_DAY
   -e END_DAY, --end_day END_DAY
   -L, --latest
@@ -110,6 +111,12 @@ burst_results = create_burts(geojson_file, authorization)
 python -m imagery.query -v -M --input_file "test_feature.json" --start_day "2023-07-28" --end_day "2023-07-28" --output_dir "temp" --authorization <your encoded key string>
 ```
 
+### Query imagery for a OSM road segment
+
+```
+python -m imagery.query -v -M -sg 089283082abbffff0423fcc946ad8fec --start_day "2024-07-28" --end_day "2024-07-28" --output_dir "temp" --authorization <your encoded key string>
+```
+
 ### Query imagery for a GeoJSON Polygon Feature, use cache for resumable, use batches
 
 ```
@@ -133,6 +140,8 @@ python -m imagery.query -v -M -g --input_file "test_feature_col.json" --start_da
 ```
 python -m imagery.query -v -M -k -E --input_file "test_feature.json" --start_day "2023-07-28" --end_day "2023-07-28" --output_dir "temp" --authorization <your encoded key string>
 ```
+
+
 
 `Focal Length` is encoded in pixel units (i.e., not mm)
 `Lens` is encoded as `<k1> <k2>`
