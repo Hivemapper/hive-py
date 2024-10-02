@@ -13,10 +13,9 @@ from exiftool import ExifToolHelper
 from itertools import repeat, zip_longest
 from requests.adapters import HTTPAdapter, Retry
 from tqdm import tqdm
-from urllib.parse import quote
+from urllib.parse import quote, urlparse, urlencode
 from util import geo, replace_dirs_with_zips, stitching, write_csv_from_csv
 from imagery.processing import clahe_smart_clip, undistort_via_exif
-from urllib.parse import urlencode
 
 BATCH_SIZE = 10000
 CACHE_DIR = '.hivepy_cache'
@@ -474,6 +473,62 @@ def query_latest_imagery(
 
   return frames
 
+def query_imagery_with_segment_ids(
+  segment_ids,
+  weeks,
+  custom_ids,
+  authorization,
+  local_dir,
+  mount = None,
+  num_threads=DEFAULT_RETRIES,
+  verbose=False,
+  use_cache=True,
+  skip_cached_frames=False,
+):
+  headers = {
+    "content-type": "application/json",
+    "authorization": f'Basic {authorization}',
+  }
+  frames = []
+  pbar = None
+
+  if verbose:
+    pbar = tqdm(total=len(segment_ids) * len(weeks))
+
+  threads = min(MAX_API_THREADS, num_threads)
+  executor = concurrent.futures.ThreadPoolExecutor(max_workers=threads)
+  futures = []
+  assert(len(segment_ids) <= MAX_API_THREADS)
+
+  for segment_id, custom_id in zip_longest(segment_ids, custom_ids):
+    data = {'segmentId': segment_id}
+    for week in weeks:
+      url = f'{IMAGERY_API_URL}?week={week}'
+      if mount:
+        url += f'&mount={mount}'
+      future = executor.submit(
+        post_cached,
+        url,
+        data,
+        headers,
+        verbose,
+        use_cache,
+        skip_cached_frames,
+        pbar,
+        custom_id,
+      )
+      futures.append(future)
+
+  for future in concurrent.futures.as_completed(futures):
+    results = future.result()
+
+    frames += results
+
+  if pbar is not None:
+    pbar.close()
+
+  return frames
+    
 def query_latest_imagery_with_segment_ids(
   segment_ids,
   custom_ids,
@@ -536,62 +591,6 @@ def query_latest_imagery_with_segment_ids(
 
   return frames
 
-def query_imagery_with_segment_ids(
-  segment_ids,
-  weeks,
-  custom_ids,
-  authorization,
-  local_dir,
-  mount = None,
-  num_threads=DEFAULT_RETRIES,
-  verbose=False,
-  use_cache=True,
-  skip_cached_frames=False,
-):
-  headers = {
-    "content-type": "application/json",
-    "authorization": f'Basic {authorization}',
-  }
-  frames = []
-  pbar = None
-
-  if verbose:
-    pbar = tqdm(total=len(segment_ids) * len(weeks))
-
-  threads = min(MAX_API_THREADS, num_threads)
-  executor = concurrent.futures.ThreadPoolExecutor(max_workers=threads)
-  futures = []
-  assert(len(segment_ids) <= MAX_API_THREADS)
-
-  for segment_id, custom_id in zip_longest(segment_ids, custom_ids):
-    data = {'segmentId': segment_id}
-    for week in weeks:
-      url = f'{IMAGERY_API_URL}?week={week}'
-      if mount:
-        url += f'&mount={mount}'
-      future = executor.submit(
-        post_cached,
-        url,
-        data,
-        headers,
-        verbose,
-        use_cache,
-        skip_cached_frames,
-        pbar,
-        custom_id,
-      )
-      futures.append(future)
-
-  for future in concurrent.futures.as_completed(futures):
-    results = future.result()
-
-    frames += results
-
-  if pbar is not None:
-    pbar.close()
-
-  return frames
-    
 def query_frames_with_segment_ids(  
   segment_ids,
   custom_ids,
@@ -740,68 +739,31 @@ def query_latest_frames(
 
   return frames
 
-def _query_segment_imagery(      
-  segment_ids, 
-  start_day,
-  end_day,
+def handle_download_and_export_from_raw_frames(  
+  frames_raw,  
   output_dir,
   authorization,
-  mount,
-  latest,
   export_geojson,
   should_stitch,
   max_dist,
   max_lag,
   max_angle,
-  width,
   merge_metadata,
   camera_intrinsics,
   update_exif,
-  custom_id_field,
-  custom_min_date_field,
   tracked_by_id,
-  skip_geo_file,
   num_threads,
   verbose,
   use_cache,
-  skip_cached_frames,
-  custom_ids = [],
-  min_dates = [], 
-):
-  if latest:
-    frames_raw = query_latest_imagery_with_segment_ids(
-      segment_ids,
-      custom_ids,
-      min_dates,
-      output_dir,
-      authorization,
-      mount,
-      num_threads,
-      verbose,
-      use_cache,
-      skip_cached_frames,
-    )
-  else:
-    frames_raw = query_frames_with_segment_ids(
-      segment_ids,
-      custom_ids,
-      start_day,
-      end_day,
-      output_dir,
-      authorization,
-      mount,
-      num_threads,
-      verbose,
-      use_cache,
-      skip_cached_frames,
-    )
+  ):
   frames = []
   seen = set()
   for frame in frames_raw:
     url = frame.get('url')
-    k = url.split('.com/')[1].split('?')[0]
+    path = urlparse(url).path  # Extract the path part of the URL
+    k = path.lstrip('/')  # Remove leading slash if necessary
     if k in seen:
-      continue
+        continue
     seen.add(k)
     frames.append(frame)
 
@@ -883,6 +845,80 @@ def _query_segment_imagery(
     pbar.close()
 
   return img_paths
+
+def _query_segment_imagery(      
+  segment_ids, 
+  start_day,
+  end_day,
+  output_dir,
+  authorization,
+  mount,
+  latest,
+  export_geojson,
+  should_stitch,
+  max_dist,
+  max_lag,
+  max_angle,
+  width,
+  merge_metadata,
+  camera_intrinsics,
+  update_exif,
+  custom_id_field,
+  custom_min_date_field,
+  tracked_by_id,
+  skip_geo_file,
+  num_threads,
+  verbose,
+  use_cache,
+  skip_cached_frames,
+  custom_ids = [],
+  min_dates = [], 
+):
+  if latest:
+    frames_raw = query_latest_imagery_with_segment_ids(
+      segment_ids,
+      custom_ids,
+      min_dates,
+      output_dir,
+      authorization,
+      mount,
+      num_threads,
+      verbose,
+      use_cache,
+      skip_cached_frames,
+    )
+  else:
+    frames_raw = query_frames_with_segment_ids(
+      segment_ids,
+      custom_ids,
+      start_day,
+      end_day,
+      output_dir,
+      authorization,
+      mount,
+      num_threads,
+      verbose,
+      use_cache,
+      skip_cached_frames,
+    )
+  return handle_download_and_export_from_raw_frames(
+    frames_raw,
+    output_dir,
+    authorization,
+    export_geojson,
+    should_stitch,
+    max_dist,
+    max_lag,
+    max_angle,
+    merge_metadata,
+    camera_intrinsics,
+    update_exif,
+    tracked_by_id,
+    num_threads,
+    verbose,
+    use_cache,
+  )
+
 
 def frame_within_day_bounds(frame, start_day, end_day):
   d = datetime.fromisoformat(frame.get('timestamp').split('.')[0])
@@ -1009,94 +1045,23 @@ def _query(
       skip_cached_frames,
     )
 
-  frames = []
-  seen = set()
-  for frame in frames_raw:
-    url = frame.get('url')
-    k = url.split('.com/')[1].split('?')[0]
-    if k in seen:
-      continue
-    seen.add(k)
-    frames.append(frame)
-
-  print(f'Found {len(frames)} images!')
-
-  img_paths = []
-  pbar = None
-
-  if frames:
-    if verbose:
-      print(f'Downloading with {num_threads} threads...')
-      pbar = tqdm(total=len(frames))
-
-    if tracked_by_id is not None:
-      by_id = {}
-      for frame in frames:
-        custom_id = frame['id']
-        by_id.setdefault(custom_id, [])
-        by_id[custom_id].append(frame)
-        tracked_by_id.setdefault(custom_id, frame.get('timestamp'))
-        tracked_by_id[custom_id] = max(tracked_by_id[custom_id], frame.get('timestamp'))
-      for custom_id, frame_set in by_id.items():
-        local_dir = os.path.join(output_dir, custom_id)
-        img_paths += download_files(
-          frame_set,
-          local_dir,
-          authorization,
-          False,
-          merge_metadata,
-          camera_intrinsics,
-          update_exif,
-          num_threads,
-          verbose,
-          use_cache,
-          pbar,
-        )
-      if export_geojson:
-        write_geojson([frames], output_dir, True, verbose)
-    elif should_stitch:
-      stitched = stitching.stitch(frames, max_dist, max_lag, max_angle, verbose)
-      for i, frame_set in enumerate(stitched):
-        folder = f'{str(uuid.uuid4())}-{str(i)}'
-        local_dir = os.path.join(output_dir, folder)
-        img_paths += download_files(
-          frame_set,
-          local_dir,
-          authorization,
-          False,
-          merge_metadata,
-          camera_intrinsics,
-          update_exif,
-          num_threads,
-          verbose,
-          use_cache,
-          pbar,
-        )
-      if export_geojson:
-        write_geojson(stitched, output_dir, False, verbose)
-    else:
-      img_paths += download_files(
-        frames,
-        output_dir,
-        authorization,
-        True,
-        merge_metadata,
-        camera_intrinsics,
-        update_exif,
-        num_threads,
-        verbose,
-        use_cache,
-        pbar,
-      )
-      if export_geojson:
-        write_geojson([frames], output_dir, True, verbose)
-    
-    print(f'{len(frames)} frames saved to {output_dir}!')
-
-  if pbar is not None:
-    pbar.close()
-
-  return img_paths
+  return handle_download_and_export_from_raw_frames(
+    frames_raw,
+    output_dir,
+    authorization,
+    export_geojson,
+    should_stitch,
+    max_dist,
+    max_lag,
+    max_angle,
+    merge_metadata,
+    camera_intrinsics,
+    update_exif,
+    tracked_by_id,
+    num_threads,
+    verbose,
+    use_cache,
+  )
 
 def transform_input(
   file_path,
@@ -1364,6 +1329,11 @@ def probe(
 
   print(f'Saved probe data to {local_path}')
 
+def validate_max_args(value_list, max_args, arg_name = ''):
+    if len(value_list) > max_args:
+        raise argparse.ArgumentTypeError(f"Maximum {max_args} {arg_name} arguments allowed, but {len(value_list)} provided.")
+    return value_list
+
 if __name__ == '__main__':
   parser = argparse.ArgumentParser()
   # require at least one of input_file or segment_id
@@ -1410,6 +1380,9 @@ if __name__ == '__main__':
     # throw error that requires either one
     print('Please provide either an input geojson file or segment ids')
     exit()
+
+  if args.segment_ids:
+    args.segment_ids = validate_max_args(args.segment_ids, MAX_API_THREADS, 'segment_ids')
 
   if args.input_file and args.probe:
     probe(
