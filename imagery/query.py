@@ -1342,7 +1342,7 @@ if __name__ == '__main__':
   group.add_argument('-sg', '--segment_ids', nargs='+', help='Segment IDs')
   parser.add_argument('-s', '--start_day', type=valid_date)
   parser.add_argument('-e', '--end_day', type=valid_date)
-  parser.add_argument('-W', '--week', type=valid_date)
+  parser.add_argument('-W', '--week', type=valid_date, help='Specify the week to get data from, needs to be a Monday 00:00UTC')
   parser.add_argument('-L', '--latest', action='store_true')
   parser.add_argument('-x', '--stitch', action='store_true')
   parser.add_argument('-d', '--max_dist', type=float, default=DEFAULT_STITCH_MAX_DISTANCE)
