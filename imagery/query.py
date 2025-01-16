@@ -1342,6 +1342,7 @@ if __name__ == '__main__':
   group.add_argument('-sg', '--segment_ids', nargs='+', help='Segment IDs')
   parser.add_argument('-s', '--start_day', type=valid_date)
   parser.add_argument('-e', '--end_day', type=valid_date)
+  parser.add_argument('-W', '--week', type=valid_date, help='Specify the week to get data from, needs to be a Monday 00:00UTC')
   parser.add_argument('-L', '--latest', action='store_true')
   parser.add_argument('-x', '--stitch', action='store_true')
   parser.add_argument('-d', '--max_dist', type=float, default=DEFAULT_STITCH_MAX_DISTANCE)
@@ -1375,11 +1376,18 @@ if __name__ == '__main__':
   parser.add_argument('-q', '--probe', action='store_true')
   args = parser.parse_args()
 
- # require either 
+  # require either
   if (args.input_file == None) and (args.segment_ids== None):
     # throw error that requires either one
     print('Please provide either an input geojson file or segment ids')
     exit()
+
+  # specify start_date or week
+  if (args.week is not None):
+    is_valid_week = args.week.hour == 0 and args.week.minute == 0 and args.week.second == 0 and args.week.weekday() == 0
+    assert(is_valid_week)
+    args.start_day = args.week
+    args.end_day = args.week
 
   if args.segment_ids:
     args.segment_ids = validate_max_args(args.segment_ids, MAX_API_THREADS, 'segment_ids')
