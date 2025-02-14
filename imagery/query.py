@@ -1311,6 +1311,8 @@ def probe(
   url = PROBE_API_URL
   if start_day:
     url += f'?min_week={start_day.strftime("%Y-%m-%d")}'
+  if mount:
+    url += f'&mount={mount}'
 
   probe_data = None
 
