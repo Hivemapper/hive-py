@@ -123,6 +123,12 @@ python -m imagery.query -v -M -sg 089283082abbffff0423fcc946ad8fec --start_day "
 python -m imagery.query -v -M -sg 089283082abbffff0423fcc946ad8fec --week "2024-07-22" --output_dir "temp" --authorization <your encoded key string>
 ```
 
+### Query latest contiguous imagery for max coverage of GeoJSON Polygon FeatureCollection; stitch together; save a GeoJSON of LineStrings; use a single min date
+
+```
+python -m imagery.query -v -M -x -g --input_file "test_feature_col.json" -L -G "2025-01-01" -j --output_dir "temp" --authorization <your encoded key string>
+```
+
 ### Query imagery for multiple Overture Road Segment Id
 
 ```
