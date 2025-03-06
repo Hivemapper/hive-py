@@ -417,6 +417,7 @@ def query_latest_imagery(
   custom_ids,
   min_days,
   crossjoin,
+  global_min_date,
   authorization,
   local_dir,
   mount=None,
@@ -448,6 +449,10 @@ def query_latest_imagery(
     if min_day:
       url += f'?min_week={min_day}'
       params_added = True
+    elif global_min_date:
+      url += f'?min_week={global_min_date.strftime("%Y-%m-%d")}'
+      params_added = True      
+
     if mount:
       pchar = '&' if params_added else '?'
       url += f'{pchar}mount={mount}'
@@ -720,6 +725,7 @@ def query_latest_frames(
   custom_ids,
   min_dates,
   crossjoin,
+  global_min_date,
   output_dir,
   authorization,
   mount = None,
@@ -735,6 +741,7 @@ def query_latest_frames(
     custom_ids,
     min_dates,
     crossjoin,
+    global_min_date,
     authorization,
     output_dir,
     mount,
@@ -1007,6 +1014,7 @@ def _query(
   mount=None,
   latest=False,
   crossjoin=False,
+  global_min_date=None,
   export_geojson=False,
   should_stitch=False,
   max_dist=DEFAULT_STITCH_MAX_DISTANCE,
@@ -1031,6 +1039,7 @@ def _query(
       custom_ids,
       min_dates,
       crossjoin,
+      global_min_date,
       output_dir,
       authorization,
       mount,
@@ -1150,6 +1159,7 @@ def query(
   mount=None,
   latest=False,
   crossjoin=False,
+  global_min_date=None,
   export_geojson=False,
   should_stitch=False,
   max_dist=DEFAULT_STITCH_MAX_DISTANCE,
@@ -1226,6 +1236,7 @@ def query(
       mount,
       latest,
       crossjoin,
+      global_min_date,
       export_geojson,
       should_stitch,
       max_dist,
@@ -1274,6 +1285,7 @@ def query(
       mount,
       latest,
       crossjoin,
+      global_min_date,
       export_geojson,
       should_stitch,
       max_dist,
@@ -1359,6 +1371,7 @@ if __name__ == '__main__':
   parser.add_argument('-W', '--week', type=valid_date, help='Specify the week to get data from, needs to be a Monday 00:00UTC')
   parser.add_argument('-L', '--latest', action='store_true')
   parser.add_argument('-j', '--crossjoin', action='store_true')
+  parser.add_argument('-G', '--global_min_date', type=valid_date)
   parser.add_argument('-x', '--stitch', action='store_true')
   parser.add_argument('-d', '--max_dist', type=float, default=DEFAULT_STITCH_MAX_DISTANCE)
   parser.add_argument('-l', '--max_lag', type=float, default=DEFAULT_STITCH_MAX_ANGLE)
@@ -1439,6 +1452,7 @@ if __name__ == '__main__':
     args.mount,
     args.latest,
     args.crossjoin,
+    args.global_min_date,
     args.export_geojson,
     args.stitch,
     args.max_dist,
