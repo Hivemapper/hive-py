@@ -417,6 +417,7 @@ def query_latest_imagery(
   custom_ids,
   min_days,
   crossjoin,
+  azi_filter,
   global_min_date,
   authorization,
   local_dir,
@@ -460,6 +461,11 @@ def query_latest_imagery(
     if crossjoin:
       pchar = '&' if params_added else '?'
       url += f'{pchar}crossjoin=true'
+      params_added = True
+    if azi_filter:
+      pchar = '&' if params_added else '?'
+      url += f'{pchar}azimuth={azi_filter[0]}&tolerance={azi_filter[1]}'
+      params_added = True
 
     future = executor.submit(
       post_cached,
@@ -725,6 +731,7 @@ def query_latest_frames(
   custom_ids,
   min_dates,
   crossjoin,
+  azi_filter,
   global_min_date,
   output_dir,
   authorization,
@@ -741,6 +748,7 @@ def query_latest_frames(
     custom_ids,
     min_dates,
     crossjoin,
+    azi_filter,
     global_min_date,
     authorization,
     output_dir,
@@ -1014,6 +1022,7 @@ def _query(
   mount=None,
   latest=False,
   crossjoin=False,
+  azi_filter=None,
   global_min_date=None,
   export_geojson=False,
   should_stitch=False,
@@ -1039,6 +1048,7 @@ def _query(
       custom_ids,
       min_dates,
       crossjoin,
+      azi_filter,
       global_min_date,
       output_dir,
       authorization,
@@ -1159,6 +1169,7 @@ def query(
   mount=None,
   latest=False,
   crossjoin=False,
+  azi_filter=None,
   global_min_date=None,
   export_geojson=False,
   should_stitch=False,
@@ -1236,6 +1247,7 @@ def query(
       mount,
       latest,
       crossjoin,
+      azi_filter,
       global_min_date,
       export_geojson,
       should_stitch,
@@ -1285,6 +1297,7 @@ def query(
       mount,
       latest,
       crossjoin,
+      azi_filter,
       global_min_date,
       export_geojson,
       should_stitch,
@@ -1371,6 +1384,8 @@ if __name__ == '__main__':
   parser.add_argument('-W', '--week', type=valid_date, help='Specify the week to get data from, needs to be a Monday 00:00UTC')
   parser.add_argument('-L', '--latest', action='store_true')
   parser.add_argument('-j', '--crossjoin', action='store_true')
+  parser.add_argument('-A', '--azimuth_filter_angle', type=float)
+  parser.add_argument('-T', '--azimuth_filter_tolerance', type=float)
   parser.add_argument('-G', '--global_min_date', type=valid_date)
   parser.add_argument('-x', '--stitch', action='store_true')
   parser.add_argument('-d', '--max_dist', type=float, default=DEFAULT_STITCH_MAX_DISTANCE)
@@ -1443,6 +1458,10 @@ if __name__ == '__main__':
                   if args.track_by_custom_id and args.input_file.endswith('.csv')
                   else None)
 
+  azi_filter = None
+  if args.azimuth_filter_angle is not None and args.azimuth_filter_tolerance is not None:
+    azi_filter = (azimuth_filter_angle, azimuth_filter_tolerance)
+
   img_paths = query(
     args.input_file,
     args.start_day,
@@ -1452,6 +1471,7 @@ if __name__ == '__main__':
     args.mount,
     args.latest,
     args.crossjoin,
+    azi_filter,
     args.global_min_date,
     args.export_geojson,
     args.stitch,
