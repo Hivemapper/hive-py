@@ -135,11 +135,7 @@ def post_cached(
 
 def make_week(d):
     year = d.year
-    week = d.isocalendar()[1]
-    if week == 0 or (week == 52 and d.month < 12):
-        year -= 1
-        week = 52
-
+    week = d.isocalendar()[1] - 1
     return datetime.strptime(
         "{}-W{}-1".format(year, week), '%Y-W%W-%w'
       ).strftime('%Y-%m-%d')
@@ -361,7 +357,8 @@ def query_imagery(
   custom_ids,
   authorization,
   local_dir,
-  mount = None,
+  mount=None,
+  azi_filter=None,
   num_threads=DEFAULT_RETRIES,
   verbose=False,
   use_cache=True,
@@ -389,6 +386,9 @@ def query_imagery(
       url = f'{IMAGERY_API_URL}?week={week}'
       if mount:
         url += f'&mount={mount}'
+      if azi_filter:
+        url += f'&azimuth={azi_filter[0]}&tolerance={azi_filter[1]}'
+
       future = executor.submit(
         post_cached,
         url,
@@ -417,6 +417,7 @@ def query_latest_imagery(
   custom_ids,
   min_days,
   crossjoin,
+  azi_filter,
   global_min_date,
   authorization,
   local_dir,
@@ -460,6 +461,11 @@ def query_latest_imagery(
     if crossjoin:
       pchar = '&' if params_added else '?'
       url += f'{pchar}crossjoin=true'
+      params_added = True
+    if azi_filter:
+      pchar = '&' if params_added else '?'
+      url += f'{pchar}azimuth={azi_filter[0]}&tolerance={azi_filter[1]}'
+      params_added = True
 
     future = executor.submit(
       post_cached,
@@ -489,7 +495,8 @@ def query_imagery_with_segment_ids(
   custom_ids,
   authorization,
   local_dir,
-  mount = None,
+  mount=None,
+  azi_filter=None,
   num_threads=DEFAULT_RETRIES,
   verbose=False,
   use_cache=True,
@@ -516,6 +523,8 @@ def query_imagery_with_segment_ids(
       url = f'{IMAGERY_API_URL}?week={week}'
       if mount:
         url += f'&mount={mount}'
+      if azi_filter:
+        url += f'&azimuth={azi_filter[0]}&tolerance={azi_filter[1]}'
       future = executor.submit(
         post_cached,
         url,
@@ -609,6 +618,7 @@ def query_frames_with_segment_ids(
   output_dir,
   authorization,
   mount = None,
+  azi_filter = None,
   num_threads = DEFAULT_THREADS,
   verbose = False,
   use_cache = True,
@@ -635,6 +645,7 @@ def query_frames_with_segment_ids(
     authorization,
     output_dir,
     mount,
+    azi_filter,
     num_threads,
     verbose,
     use_cache,
@@ -652,6 +663,7 @@ def query_frames(
   output_dir,
   authorization,
   mount = None,
+  azi_filter = None,
   num_threads = DEFAULT_THREADS,
   verbose = False,
   use_cache = True,
@@ -678,6 +690,7 @@ def query_frames(
     authorization,
     output_dir,
     mount,
+    azi_filter,
     num_threads,
     verbose,
     use_cache,
@@ -725,6 +738,7 @@ def query_latest_frames(
   custom_ids,
   min_dates,
   crossjoin,
+  azi_filter,
   global_min_date,
   output_dir,
   authorization,
@@ -741,6 +755,7 @@ def query_latest_frames(
     custom_ids,
     min_dates,
     crossjoin,
+    azi_filter,
     global_min_date,
     authorization,
     output_dir,
@@ -867,6 +882,7 @@ def _query_segment_imagery(
   output_dir,
   authorization,
   mount,
+  azi_filter,
   latest,
   export_geojson,
   should_stitch,
@@ -896,6 +912,7 @@ def _query_segment_imagery(
       output_dir,
       authorization,
       mount,
+      azi_filter,
       num_threads,
       verbose,
       use_cache,
@@ -910,6 +927,7 @@ def _query_segment_imagery(
       output_dir,
       authorization,
       mount,
+      azi_filter,
       num_threads,
       verbose,
       use_cache,
@@ -1014,6 +1032,7 @@ def _query(
   mount=None,
   latest=False,
   crossjoin=False,
+  azi_filter=None,
   global_min_date=None,
   export_geojson=False,
   should_stitch=False,
@@ -1039,6 +1058,7 @@ def _query(
       custom_ids,
       min_dates,
       crossjoin,
+      azi_filter,
       global_min_date,
       output_dir,
       authorization,
@@ -1057,6 +1077,7 @@ def _query(
       output_dir,
       authorization,
       mount,
+      azi_filter,
       num_threads,
       verbose,
       use_cache,
@@ -1159,6 +1180,7 @@ def query(
   mount=None,
   latest=False,
   crossjoin=False,
+  azi_filter=None,
   global_min_date=None,
   export_geojson=False,
   should_stitch=False,
@@ -1190,6 +1212,7 @@ def query(
       output_dir,
       authorization,
       mount,
+      azi_filter,
       latest,
       export_geojson,
       should_stitch,
@@ -1236,6 +1259,7 @@ def query(
       mount,
       latest,
       crossjoin,
+      azi_filter,
       global_min_date,
       export_geojson,
       should_stitch,
@@ -1285,6 +1309,7 @@ def query(
       mount,
       latest,
       crossjoin,
+      azi_filter,
       global_min_date,
       export_geojson,
       should_stitch,
@@ -1368,9 +1393,11 @@ if __name__ == '__main__':
   group.add_argument('-sg', '--segment_ids', nargs='+', help='Segment IDs')
   parser.add_argument('-s', '--start_day', type=valid_date)
   parser.add_argument('-e', '--end_day', type=valid_date)
-  parser.add_argument('-W', '--week', type=valid_date, help='Specify the week to get data from, needs to be a Monday 00:00UTC')
+  parser.add_argument('-W', '--week', type=valid_date)
   parser.add_argument('-L', '--latest', action='store_true')
   parser.add_argument('-j', '--crossjoin', action='store_true')
+  parser.add_argument('-A', '--azimuth_filter_angle', type=int)
+  parser.add_argument('-T', '--azimuth_filter_tolerance', type=int)
   parser.add_argument('-G', '--global_min_date', type=valid_date)
   parser.add_argument('-x', '--stitch', action='store_true')
   parser.add_argument('-d', '--max_dist', type=float, default=DEFAULT_STITCH_MAX_DISTANCE)
@@ -1412,11 +1439,8 @@ if __name__ == '__main__':
 
   # specify start_date or week
   if (args.week is not None):
-    is_valid_week = args.week.hour == 0 and args.week.minute == 0 and args.week.second == 0 and args.week.weekday() == 0
-    assert(is_valid_week)
-    args.start_day = args.week
-    args.end_day = args.week
-
+    args.start_day = datetime.strptime(make_week(args.week), '%Y-%m-%d')
+    args.end_day = args.start_day + timedelta(days = 6)
   if args.segment_ids:
     args.segment_ids = validate_max_args(args.segment_ids, MAX_API_THREADS, 'segment_ids')
 
@@ -1443,6 +1467,10 @@ if __name__ == '__main__':
                   if args.track_by_custom_id and args.input_file.endswith('.csv')
                   else None)
 
+  azi_filter = None
+  if args.azimuth_filter_angle is not None and args.azimuth_filter_tolerance is not None:
+    azi_filter = (args.azimuth_filter_angle, args.azimuth_filter_tolerance)
+
   img_paths = query(
     args.input_file,
     args.start_day,
@@ -1452,6 +1480,7 @@ if __name__ == '__main__':
     args.mount,
     args.latest,
     args.crossjoin,
+    azi_filter,
     args.global_min_date,
     args.export_geojson,
     args.stitch,
