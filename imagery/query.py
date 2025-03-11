@@ -361,7 +361,8 @@ def query_imagery(
   custom_ids,
   authorization,
   local_dir,
-  mount = None,
+  mount=None,
+  azi_filter=None,
   num_threads=DEFAULT_RETRIES,
   verbose=False,
   use_cache=True,
@@ -389,6 +390,8 @@ def query_imagery(
       url = f'{IMAGERY_API_URL}?week={week}'
       if mount:
         url += f'&mount={mount}'
+      if azi_filter:
+        url == f'&azimuth={azi_filter[0]}&tolerance={azi_filter[1]}'
       future = executor.submit(
         post_cached,
         url,
@@ -495,7 +498,8 @@ def query_imagery_with_segment_ids(
   custom_ids,
   authorization,
   local_dir,
-  mount = None,
+  mount=None,
+  azi_filter=None,
   num_threads=DEFAULT_RETRIES,
   verbose=False,
   use_cache=True,
@@ -522,6 +526,8 @@ def query_imagery_with_segment_ids(
       url = f'{IMAGERY_API_URL}?week={week}'
       if mount:
         url += f'&mount={mount}'
+      if azi_filter:
+        url += f'&azimuth={azi_filter[0]}&tolerance={azi_filter[1]}'
       future = executor.submit(
         post_cached,
         url,
@@ -615,6 +621,7 @@ def query_frames_with_segment_ids(
   output_dir,
   authorization,
   mount = None,
+  azi_filter = None,
   num_threads = DEFAULT_THREADS,
   verbose = False,
   use_cache = True,
@@ -641,6 +648,7 @@ def query_frames_with_segment_ids(
     authorization,
     output_dir,
     mount,
+    azi_filter,
     num_threads,
     verbose,
     use_cache,
@@ -658,6 +666,7 @@ def query_frames(
   output_dir,
   authorization,
   mount = None,
+  azi_filter = None,
   num_threads = DEFAULT_THREADS,
   verbose = False,
   use_cache = True,
@@ -684,6 +693,7 @@ def query_frames(
     authorization,
     output_dir,
     mount,
+    azi_filter,
     num_threads,
     verbose,
     use_cache,
@@ -875,6 +885,7 @@ def _query_segment_imagery(
   output_dir,
   authorization,
   mount,
+  azi_filter,
   latest,
   export_geojson,
   should_stitch,
@@ -904,6 +915,7 @@ def _query_segment_imagery(
       output_dir,
       authorization,
       mount,
+      azi_filter,
       num_threads,
       verbose,
       use_cache,
@@ -918,6 +930,7 @@ def _query_segment_imagery(
       output_dir,
       authorization,
       mount,
+      azi_filter,
       num_threads,
       verbose,
       use_cache,
@@ -1067,6 +1080,7 @@ def _query(
       output_dir,
       authorization,
       mount,
+      azi_filter,
       num_threads,
       verbose,
       use_cache,
@@ -1201,6 +1215,7 @@ def query(
       output_dir,
       authorization,
       mount,
+      azi_filter,
       latest,
       export_geojson,
       should_stitch,
