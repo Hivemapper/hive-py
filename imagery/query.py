@@ -135,11 +135,7 @@ def post_cached(
 
 def make_week(d):
     year = d.year
-    week = d.isocalendar()[1]
-    if week == 0 or (week == 52 and d.month < 12):
-        year -= 1
-        week = 52
-
+    week = d.isocalendar()[1] - 1
     return datetime.strptime(
         "{}-W{}-1".format(year, week), '%Y-W%W-%w'
       ).strftime('%Y-%m-%d')
@@ -391,7 +387,8 @@ def query_imagery(
       if mount:
         url += f'&mount={mount}'
       if azi_filter:
-        url == f'&azimuth={azi_filter[0]}&tolerance={azi_filter[1]}'
+        url += f'&azimuth={azi_filter[0]}&tolerance={azi_filter[1]}'
+
       future = executor.submit(
         post_cached,
         url,
@@ -1396,11 +1393,11 @@ if __name__ == '__main__':
   group.add_argument('-sg', '--segment_ids', nargs='+', help='Segment IDs')
   parser.add_argument('-s', '--start_day', type=valid_date)
   parser.add_argument('-e', '--end_day', type=valid_date)
-  parser.add_argument('-W', '--week', type=valid_date, help='Specify the week to get data from, needs to be a Monday 00:00UTC')
+  parser.add_argument('-W', '--week', type=valid_date)
   parser.add_argument('-L', '--latest', action='store_true')
   parser.add_argument('-j', '--crossjoin', action='store_true')
-  parser.add_argument('-A', '--azimuth_filter_angle', type=float)
-  parser.add_argument('-T', '--azimuth_filter_tolerance', type=float)
+  parser.add_argument('-A', '--azimuth_filter_angle', type=int)
+  parser.add_argument('-T', '--azimuth_filter_tolerance', type=int)
   parser.add_argument('-G', '--global_min_date', type=valid_date)
   parser.add_argument('-x', '--stitch', action='store_true')
   parser.add_argument('-d', '--max_dist', type=float, default=DEFAULT_STITCH_MAX_DISTANCE)
@@ -1442,11 +1439,8 @@ if __name__ == '__main__':
 
   # specify start_date or week
   if (args.week is not None):
-    is_valid_week = args.week.hour == 0 and args.week.minute == 0 and args.week.second == 0 and args.week.weekday() == 0
-    assert(is_valid_week)
-    args.start_day = args.week
-    args.end_day = args.week
-
+    args.start_day = datetime.strptime(make_week(args.week), '%Y-%m-%d')
+    args.end_day = args.start_day + timedelta(days = 6)
   if args.segment_ids:
     args.segment_ids = validate_max_args(args.segment_ids, MAX_API_THREADS, 'segment_ids')
 
@@ -1475,7 +1469,7 @@ if __name__ == '__main__':
 
   azi_filter = None
   if args.azimuth_filter_angle is not None and args.azimuth_filter_tolerance is not None:
-    azi_filter = (azimuth_filter_angle, azimuth_filter_tolerance)
+    azi_filter = (args.azimuth_filter_angle, args.azimuth_filter_tolerance)
 
   img_paths = query(
     args.input_file,
