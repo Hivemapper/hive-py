@@ -16,6 +16,7 @@ from tqdm import tqdm
 from urllib.parse import quote, urlparse, urlencode
 from util import geo, replace_dirs_with_zips, stitching, write_csv_from_csv
 from imagery.processing import clahe_smart_clip, undistort_via_exif
+import copy
 
 BATCH_SIZE = 10000
 CACHE_DIR = '.hivepy_cache'
@@ -155,6 +156,7 @@ def fetch_camera_info(device):
       resp = r.json()
       CAMERA_INFO['hdc'] = resp['hdc']
       CAMERA_INFO['hdc-s'] = resp['hdc-s']
+      CAMERA_INFO['bee'] = resp['bee']
 
   return CAMERA_INFO.get(device)
 
@@ -303,11 +305,8 @@ def download_files(
       device = frame.get('device', 'hdc')
       width = float(frame.get('width', 2028))
       camera_info = fetch_camera_info(device)
-      frame['camera'] = {
-        'focal': camera_info.get('focal', 0.0) * width,
-        'k1': camera_info.get('k1', 0.0),
-        'k2': camera_info.get('k2', 0.0),
-      }
+      frame['camera'] = copy.deepcopy*camera_info
+      frame['camera']['focal'] = camera_info.get('focal', 0.0) * width,
 
   if merge_metadata:
     local_meta_path = os.path.join(local_dir, 'meta.json')
