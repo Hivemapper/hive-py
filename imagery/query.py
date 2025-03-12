@@ -305,7 +305,7 @@ def download_files(
       device = frame.get('device', 'hdc')
       width = float(frame.get('width', 2028))
       camera_info = fetch_camera_info(device)
-      frame['camera'] = copy.deepcopy*camera_info
+      frame['camera'] = copy.deepcopy(camera_info)
       frame['camera']['focal'] = camera_info.get('focal', 0.0) * width,
 
   if merge_metadata:
