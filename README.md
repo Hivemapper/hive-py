@@ -80,6 +80,22 @@ options:
   -a AUTHORIZATION, --authorization AUTHORIZATION
   -v, --verbose
 ```
+### Map Features CLI
+
+```
+> python -m mapfeatures.query
+usage: query.py [-h] -i INPUT_FILE -o OUTPUT_DIR [-w WIDTH] -a AUTHORIZATION [-c NUM_THREADS] [-v]
+
+options:
+  -h, --help            show this help message and exit
+  -i INPUT_FILE, --input_file INPUT_FILE
+                        Input file
+  -o OUTPUT_DIR, --output_dir OUTPUT_DIR
+  -w WIDTH, --width WIDTH
+  -a AUTHORIZATION, --authorization AUTHORIZATION
+  -c NUM_THREADS, --num_threads NUM_THREADS
+  -v, --verbose
+```
 ### Python API
 
 **Query and download**
@@ -225,6 +241,11 @@ python -m account.info -ba <your encoded key string>
 
 ```
 python -m account.info -ta <your encoded key string>
+```
+
+### Querying Map Features
+```
+python -m mapfeatures.query --input_file "test_feature_col.json" --output_dir "out" --authorization <encoded key>
 ```
 
 ## Restitching
