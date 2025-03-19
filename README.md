@@ -95,6 +95,7 @@ options:
   -a AUTHORIZATION, --authorization AUTHORIZATION
   -c NUM_THREADS, --num_threads NUM_THREADS
   -v, --verbose
+  -z, --zip_images
 ```
 ### Python API
 
