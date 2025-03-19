@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 dynamic = ["dependencies"]
 name = "hivemapper-python"
-version = "0.4.7"
+version = "0.4.7.1"
 authors = [{ name="Hivemapper", email="hi@hivemapper.com" }]
 description = "SDK for Hivemapper APIs"
 readme = "README.md"
