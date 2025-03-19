@@ -1,6 +1,5 @@
 import argparse
 import concurrent.futures
-import hashlib
 import json
 import os
 import requests
@@ -16,7 +15,7 @@ DEFAULT_BACKOFF = 1.0
 DEFAULT_RETRIES = 10
 DEFAULT_THREADS = 20
 DEFAULT_WIDTH = 25
-MAP_FEATURE_API_URL = 'http://localhost:10000/api/developer/mapFeatures/poly'
+MAP_FEATURE_API_URL = 'https://hivemapper.com/api/developer/mapFeatures/poly'
 MAX_API_THREADS = 16
 MAX_AREA = 1000 * 1000 * 4 # 4km^2
 STATUS_FORCELIST = [429, 502, 503, 504, 524]
