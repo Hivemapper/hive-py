@@ -9,7 +9,7 @@ import uuid
 from area import area
 from requests.adapters import HTTPAdapter, Retry
 from tqdm import tqdm
-from util import geo
+from util import geo, replace_dirs_with_zips
 
 DEFAULT_BACKOFF = 1.0
 DEFAULT_RETRIES = 10
@@ -306,6 +306,7 @@ if __name__ == '__main__':
   parser.add_argument('-a', '--authorization', type=str, required=True)
   parser.add_argument('-c', '--num_threads', type=int, default=DEFAULT_THREADS)
   parser.add_argument('-v', '--verbose', action='store_true')
+  parser.add_argument('-z', '--zip_images', action='store_true')
   args = parser.parse_args()
 
   os.makedirs(args.output_dir, exist_ok=True)
@@ -329,3 +330,6 @@ if __name__ == '__main__':
   loc = os.path.join(args.output_dir, 'mapfeatures.json')
   with open(loc, 'w') as f:
     json.dump(mapfeatures, f, indent=2)
+
+  if args.zip_images:
+    replace_dirs_with_zips(args.output_dir, False, args.verbose)
