@@ -4,7 +4,7 @@ import shutil
 
 from datetime import datetime
 from tqdm import tqdm
-from zipfile import ZipFil
+from zipfile import ZipFile
 from . import geo, optical_flow, stitching
 
 def replace_dirs_with_zips(output_dir, zip_images_only = False, verbose=False):
