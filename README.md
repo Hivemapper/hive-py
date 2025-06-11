@@ -106,10 +106,10 @@ options:
 **Query and download**
 
 ```
-from imagery import query_frames, download_files
+from imagery import query, download_files
 
 # make the API call to query available data
-frames = query_frames(geojson_file, start_day, end_day, output_dir, authorization)
+frames = query(geojson_file, start_day, end_day, output_dir, authorization)
 
 # download the content into folders grouped by its session id
 download_files(frames, output_dir)
