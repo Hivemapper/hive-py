@@ -1,9 +1,8 @@
 # hive-py
+
 ![Python Version](https://img.shields.io/badge/python-%3E%3D3.10-blue)
 
-
 ## Install
-
 
 Method: PyPi
 
@@ -70,6 +69,7 @@ options:
   -b, --use_batches
   -N, --skip_cached_frames
 ```
+
 ### Bursts CLI
 
 ```
@@ -82,6 +82,7 @@ options:
   -a AUTHORIZATION, --authorization AUTHORIZATION
   -v, --verbose
 ```
+
 ### Map Features CLI
 
 ```
@@ -99,21 +100,23 @@ options:
   -v, --verbose
   -z, --zip_images
 ```
+
 ### Python API
 
 **Query and download**
 
 ```
-from imagery import query
+from imagery import query_frames, download_files
 
 # make the API call to query available data
-frames = query.query_frames(geojson_file, start_day, end_day, output_dir, authorization)
+frames = query_frames(geojson_file, start_day, end_day, output_dir, authorization)
 
 # download the content into folders grouped by its session id
-query.download_files(frames, output_dir)
+download_files(frames, output_dir)
 ```
 
 **Create Honey Burst**
+
 ```
 from bursts import create_bursts
 
@@ -247,6 +250,7 @@ python -m account.info -ta <your encoded key string>
 ```
 
 ### Querying Map Features
+
 ```
 python -m mapfeatures.query --input_file "test_feature_col.json" --output_dir "out" --authorization <encoded key>
 ```
