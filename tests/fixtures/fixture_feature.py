@@ -1,4 +1,4 @@
-{
+test_feature = '''{
     "type": "Feature",
     "properties": {},
     "geometry": {
@@ -28,4 +28,4 @@
         ],
         "type": "Polygon"
     }
-}
+}'''
