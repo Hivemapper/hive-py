@@ -109,6 +109,7 @@ options:
 from imagery import query, download_files
 
 # make the API call to query available data
+# note: start_day and end_day are Datetime objects
 frames = query(geojson_file, start_day, end_day, output_dir, authorization, use_cache=False)
 
 # download the content into folders grouped by its session id
