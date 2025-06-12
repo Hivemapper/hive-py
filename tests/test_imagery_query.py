@@ -27,7 +27,7 @@ class TestImageryQuery(unittest.TestCase):
         start_date = datetime.strptime('2025-01-01', '%Y-%m-%d')
         end_date = datetime.strptime('2025-01-02', '%Y-%m-%d')
         
-        frames = query('test_feature.json', start_date, end_date, 'output', auth)
+        frames = query('test_feature.json', start_date, end_date, 'output', auth, use_cache=False)
         self.assertEqual(len(frames), 23)
 
     def tearDown(self):
