@@ -8,6 +8,9 @@ on:
     branches:
       - main
 
+env:
+  HIVE_PY_UNIT_TEST_AUTH: ${{ secrets.HIVE_PY_UNIT_TEST_AUTH }}
+
 jobs:
   test:
     runs-on: ubuntu-latest
