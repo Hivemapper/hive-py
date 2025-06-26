@@ -347,7 +347,7 @@ def find_self_intersection(line):
         intersection = MultiPoint(intersection)
     return intersection
 
-def convert_to_geojson_poly(feature, width = DEFAULT_WIDTH, verbose = False):
+def convert_to_geojson_poly(feature, width = DEFAULT_WIDTH, verbose = False, max_area = AREA_LIMIT):
   geom = feature.get('geometry', feature)
   t = geom['type']
   if t == 'LineString':
@@ -370,7 +370,7 @@ def convert_to_geojson_poly(feature, width = DEFAULT_WIDTH, verbose = False):
   elif t == 'Point':
     return geojson_point_to_poly(geom, width)
   elif t == 'Polygon' or t == 'MultiPolygon':
-    return chunk_by_area(feature, AREA_LIMIT, verbose)
+    return chunk_by_area(feature, max_area, verbose)
   elif t == 'GeometryCollection':
     polys = [convert_to_geojson_poly(p, width, verbose) for p in geom.get('geometries', [])]
     polys = flat_list(polys)

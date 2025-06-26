@@ -31,7 +31,9 @@ IMAGERY_API_URL = 'https://hivemapper.com/api/developer/imagery/poly'
 LATEST_IMAGERY_API_URL = 'https://hivemapper.com/api/developer/latest/poly'
 PROBE_API_URL = 'https://hivemapper.com/api/developer/probe'
 RENEW_ASSET_URL = 'https://hivemapper.com/api/developer/renew/'
+MAP_MATCH_API_URL = 'https://hivemapper.com/api/developer/imagery/mapmatch'
 MAX_API_THREADS = 16
+MAX_MAP_MATCH_AREA = 500 * 500
 MAX_AREA = 1000 * 1000 * 4 # 4km^2
 MAX_PROBE_AREA = 1000 * 1000 # 1km^2
 STATUS_FORCELIST = [429, 502, 503, 504, 524]
@@ -421,6 +423,7 @@ def query_latest_imagery(
   authorization,
   local_dir,
   mount=None,
+  map_match=False,
   num_threads=DEFAULT_THREADS,
   verbose=False,
   use_cache=True,
@@ -444,7 +447,7 @@ def query_latest_imagery(
     data = feature.get('geometry', feature)
     assert(area(data) <= MAX_AREA)
 
-    url = LATEST_IMAGERY_API_URL
+    url = LATEST_IMAGERY_API_URL if not map_match else MAP_MATCH_API_URL
     params_added = False
     if min_day:
       url += f'?min_week={min_day}'
@@ -699,7 +702,7 @@ def query_frames(
 
   return filtered_frames
 
-def load_features(geojson_file, verbose = False):
+def load_features(geojson_file, verbose = False, map_match = False):
   features = []
   with open(geojson_file, 'r') as f:
     fc = json.load(f)
@@ -717,7 +720,8 @@ def load_features(geojson_file, verbose = False):
     custom_ids.append(properties.get('id', None))
     min_dates.append(properties.get('min_date', None))
 
-  features = [geo.convert_to_geojson_poly(f, DEFAULT_WIDTH, verbose) for f in features]
+  max_area = MAX_AREA if not map_match else MAX_MAP_MATCH_AREA
+  features = [geo.convert_to_geojson_poly(f, DEFAULT_WIDTH, verbose, max_area) for f in features]
   features = [feature for feature in features if feature is not None]
   new_features = []
   for feature in features:
@@ -742,6 +746,7 @@ def query_latest_frames(
   output_dir,
   authorization,
   mount = None,
+  map_match = False,
   num_threads = DEFAULT_THREADS,
   verbose = False,
   use_cache = True,
@@ -759,6 +764,7 @@ def query_latest_frames(
     authorization,
     output_dir,
     mount,
+    map_match,
     num_threads,
     verbose,
     use_cache,
@@ -1042,6 +1048,7 @@ def _query(
   merge_metadata=False,
   camera_intrinsics=False,
   update_exif=False,
+  map_match=False,
   custom_id_field=None,
   custom_min_date_field=None,
   tracked_by_id=None,
@@ -1062,6 +1069,7 @@ def _query(
       output_dir,
       authorization,
       mount,
+      map_match,
       num_threads,
       verbose,
       use_cache,
@@ -1190,6 +1198,7 @@ def query(
   merge_metadata=False,
   camera_intrinsics=False,
   update_exif=False,
+  map_match=False,
   custom_id_field=None,
   custom_min_date_field=None,
   custom_date_formatting=None,
@@ -1269,6 +1278,7 @@ def query(
       merge_metadata,
       camera_intrinsics,
       update_exif,
+      map_match,
       custom_id_field,
       custom_min_date_field,
       tracked_by_id,
@@ -1319,6 +1329,7 @@ def query(
       merge_metadata,
       camera_intrinsics,
       update_exif,
+      map_match,
       custom_id_field,
       custom_min_date_field,
       tracked_by_id,
@@ -1428,6 +1439,7 @@ if __name__ == '__main__':
   parser.add_argument('-b', '--use_batches', action='store_true')
   parser.add_argument('-N', '--skip_cached_frames', action='store_true')
   parser.add_argument('-q', '--probe', action='store_true')
+  parser.add_argument('-U', '--map_match', action='store_true')
   args = parser.parse_args()
 
   # require either
@@ -1490,6 +1502,7 @@ if __name__ == '__main__':
     args.merge_metadata,
     args.camera_intrinsics,
     args.update_exif,
+    args.map_match,
     args.custom_id_field,
     args.custom_min_date_field,
     args.custom_date_formatting,
