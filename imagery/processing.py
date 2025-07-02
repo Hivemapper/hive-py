@@ -140,8 +140,6 @@ def undistort_via_merged_json(
     k3 = cam.get('k3', 0.0)
     k4 = cam.get('k4', 0.0)
 
-  print(f, k1, k2, k3, k4)
-
   img = cv.imread(img_path)
   h, w= img.shape[:2]
 
