@@ -15,7 +15,7 @@ from requests.adapters import HTTPAdapter, Retry
 from tqdm import tqdm
 from urllib.parse import quote, urlparse, urlencode
 from util import geo, replace_dirs_with_zips, stitching, write_csv_from_csv
-from imagery.processing import clahe_smart_clip, undistort_via_exif
+from imagery.processing import clahe_smart_clip, undistort_via_merged_json
 import copy
 
 BATCH_SIZE = 10000
@@ -1419,7 +1419,7 @@ if __name__ == '__main__':
   parser.add_argument('-g', '--export_geojson', action='store_true')
   parser.add_argument('-w', '--width', type=int, default=DEFAULT_WIDTH)
   parser.add_argument('-m', '--mount', type=str)
-  parser.add_argument('-M', '--merge_metadata', action='store_true')
+  parser.add_argument('-M', '--merge_metadata', action='store_true', default=True)
   parser.add_argument('-I', '--custom_id_field', type=str)
   parser.add_argument('-S', '--custom_min_date_field', type=str)
   parser.add_argument('-SF', '--custom_date_formatting', type=str)
@@ -1527,7 +1527,7 @@ if __name__ == '__main__':
       elif args.image_post_processing == 'undistort':
         assert(args.camera_intrinsics)
         assert(args.update_exif)
-        undistort_via_exif(img_path, img_path, verbose, cache_dir)
+        undistort_via_merged_json(img_path, img_path, verbose, cache_dir)
 
     executor = concurrent.futures.ThreadPoolExecutor(max_workers=args.num_threads)
     futures = []
