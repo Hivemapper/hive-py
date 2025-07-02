@@ -1,28 +1,11 @@
 import cv2 as cv
 import hashlib
+import json
 import numpy as np
 import os
 import subprocess
 
 from datetime import datetime
-from exiftool import ExifToolHelper
-
-TAGS_TO_KEEP = [
-  'EXIF:DateTimeOriginal',
-  'EXIF:Orientation',
-  'EXIF:FocalLength',
-  'EXIF:SubSecTimeOriginal',
-  'EXIF:GPSVersionID',
-  'EXIF:GPSLatitudeRef',
-  'EXIF:GPSLatitude',
-  'EXIF:GPSLongitudeRef',
-  'EXIF:GPSLongitude',
-  'EXIF:GPSAltitudeRef',
-  'EXIF:GPSAltitude',
-  'EXIF:GPSDOP',
-  'XMP:XMPToolkit',
-  'XMP:Lens',
-]
 
 def clahe(
   img_path,
@@ -129,7 +112,7 @@ def clahe_smart_clip(
   if cache_dir:
     cache_processed_status(img_path, 'clahe', cache_dir)
 
-def undistort_via_exif(
+def undistort_via_merged_json(
   img_path,
   out_path,
   verbose = False,
@@ -146,17 +129,16 @@ def undistort_via_exif(
     print(img_path)
     print(f'Undistorting {img_path}...')
 
-  f = 0.0
-  k1 = 0.0
-  k2 = 0.0
-  k3 = 0.0
-  k4 = 0.0
-  tags = {}
-
-  with ExifToolHelper() as et:
-    tags = et.get_tags(img_path, [])[0]
-    f = float(tags.get('EXIF:FocalLength'))
-    k1, k2 = [float(x) for x in tags.get('XMP:Lens').split(' ')]
+  maybe_meta = '/'.join(img_path.split('/')[0:-1]) + '/meta.json'
+  with open(maybe_meta, 'r') as rf:
+    metadata = json.load(rf)
+    img_meta = metadata.get(img_path.split('/')[-1])
+    cam = img_meta.get('camera')
+    f = cam.get('focal', [0.0])[0]
+    k1 = cam.get('k1', 0.0)
+    k2 = cam.get('k2', 0.0)
+    k3 = cam.get('k3', 0.0)
+    k4 = cam.get('k4', 0.0)
 
   img = cv.imread(img_path)
   h, w= img.shape[:2]
@@ -179,16 +161,6 @@ def undistort_via_exif(
   if verbose:
     print(f'Writing {out_path}...')
   cv.imwrite(out_path, dst)
-
-  with ExifToolHelper() as et:
-    tags = { k: tags[k] for k in TAGS_TO_KEEP if k in tags }
-    if verbose:
-      print(f'Encoding exif tags from {img_path} to {out_path}...')
-    et.set_tags(
-      [out_path],
-      tags=tags,
-      params=['-overwrite_original']
-    )
 
   if cache_dir:
     cache_processed_status(img_path, 'undistort', cache_dir)
