@@ -134,7 +134,9 @@ def undistort_via_merged_json(
     metadata = json.load(rf)
     img_meta = metadata.get(img_path.split('/')[-1])
     cam = img_meta.get('camera')
-    f = cam.get('focal', [0.0])[0]
+    f = cam.get('focal', 0.0)
+    if isinstance(f, list):
+      f = f[0]
     k1 = cam.get('k1', 0.0)
     k2 = cam.get('k2', 0.0)
     k3 = cam.get('k3', 0.0)
