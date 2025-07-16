@@ -11,6 +11,7 @@ from area import area
 from collections import Counter
 from geographiclib.geodesic import Geodesic
 from pyproj import Transformer
+from scipy.spatial import KDTree
 from shapely import affinity
 from shapely.geometry import box, Polygon, LineString, MultiPolygon, GeometryCollection, Point, MultiPoint
 from shapely.ops import split, snap, unary_union
@@ -596,6 +597,27 @@ def subtract_geojson(
       }, f)
 
   return delta
+
+def prune_nearest_neighbors(frames, meters):
+  pts = []
+  for f in frames:
+    x, y = WGS_TO_MERCATOR.transform(
+      f.get('position').get('lon'),
+      f.get('position').get('lat'))
+    pts.append((x, y))
+  tree = KDTree(pts)
+  skip = set()
+  filtered_frames = []
+
+  for i, pt in enumerate(pts):
+    if i in skip:
+      continue;
+    filtered_frames.append(frames[i])
+    matches = tree.query_ball_point(pt, meters)
+    for match in matches:
+      skip.add(match)
+
+  return filtered_frames
 
 if __name__ == '__main__':
   parser = argparse.ArgumentParser()

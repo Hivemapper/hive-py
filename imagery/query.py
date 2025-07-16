@@ -773,12 +773,32 @@ def query_latest_frames(
 
   return frames
 
+def filter_frames_proximity(frames, meters, verbose = False):
+  if verbose:
+    print(f'Filtering {len(frames)} frames by proximity ({meters} m)')
+
+  filtered = geo.prune_nearest_neighbors(frames, meters)
+
+  if verbose:
+    print(f'Filtered to {len(filtered)} frames')
+
+  return filtered
+
+def filter_frames(frames, filter_seq, verbose = False):
+  filters = filter_seq.split(':')
+  for f in filters:
+    k, v = f.split('=')
+    if k == 'proximity':
+      frames = filter_frames_proximity(frames, float(v), verbose)
+  return frames
+
 def handle_download_and_export_from_raw_frames(  
   frames_raw,  
   output_dir,
   authorization,
   export_geojson,
   should_stitch,
+  filter_metadata,
   max_dist,
   max_lag,
   max_angle,
@@ -810,6 +830,9 @@ def handle_download_and_export_from_raw_frames(
     if verbose:
       print(f'Downloading with {num_threads} threads...')
       pbar = tqdm(total=len(frames))
+
+    if filter_metadata:
+      frames = filter_frames(frames, filter_metadata, verbose)
 
     if tracked_by_id is not None:
       by_id = {}
@@ -891,6 +914,7 @@ def _query_segment_imagery(
   latest,
   export_geojson,
   should_stitch,
+  filter_metadata,
   max_dist,
   max_lag,
   max_angle,
@@ -944,6 +968,7 @@ def _query_segment_imagery(
     authorization,
     export_geojson,
     should_stitch,
+    filter_metadata,
     max_dist,
     max_lag,
     max_angle,
@@ -1041,6 +1066,7 @@ def _query(
   global_min_date=None,
   export_geojson=False,
   should_stitch=False,
+  filter_metadata=None,
   max_dist=DEFAULT_STITCH_MAX_DISTANCE,
   max_lag=DEFAULT_STITCH_MAX_LAG,
   max_angle=DEFAULT_STITCH_MAX_ANGLE,
@@ -1097,6 +1123,7 @@ def _query(
     authorization,
     export_geojson,
     should_stitch,
+    filter_metadata,
     max_dist,
     max_lag,
     max_angle,
@@ -1191,6 +1218,7 @@ def query(
   global_min_date=None,
   export_geojson=False,
   should_stitch=False,
+  filter_metadata=None,
   max_dist=DEFAULT_STITCH_MAX_DISTANCE,
   max_lag=DEFAULT_STITCH_MAX_LAG,
   max_angle=DEFAULT_STITCH_MAX_ANGLE,
@@ -1224,6 +1252,7 @@ def query(
       latest,
       export_geojson,
       should_stitch,
+      filter_metadata,
       max_dist,
       max_lag,
       max_angle,
@@ -1271,6 +1300,7 @@ def query(
       global_min_date,
       export_geojson,
       should_stitch,
+      filter_metadata,
       max_dist,
       max_lag,
       max_angle,
@@ -1322,6 +1352,7 @@ def query(
       global_min_date,
       export_geojson,
       should_stitch,
+      filter_metadata,
       max_dist,
       max_lag,
       max_angle,
@@ -1420,6 +1451,7 @@ if __name__ == '__main__':
   parser.add_argument('-w', '--width', type=int, default=DEFAULT_WIDTH)
   parser.add_argument('-m', '--mount', type=str)
   parser.add_argument('-M', '--merge_metadata', action='store_true', default=True)
+  parser.add_argument('-f', '--filter', type=str)
   parser.add_argument('-I', '--custom_id_field', type=str)
   parser.add_argument('-S', '--custom_min_date_field', type=str)
   parser.add_argument('-SF', '--custom_date_formatting', type=str)
@@ -1495,6 +1527,7 @@ if __name__ == '__main__':
     args.global_min_date,
     args.export_geojson,
     args.stitch,
+    args.filter,
     args.max_dist,
     args.max_lag,
     args.max_angle,
