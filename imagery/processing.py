@@ -7,6 +7,23 @@ import subprocess
 
 from datetime import datetime
 
+TAGS_TO_KEEP = [
+  'EXIF:DateTimeOriginal',
+  'EXIF:Orientation',
+  'EXIF:FocalLength',
+  'EXIF:SubSecTimeOriginal',
+  'EXIF:GPSVersionID',
+  'EXIF:GPSLatitudeRef',
+  'EXIF:GPSLatitude',
+  'EXIF:GPSLongitudeRef',
+  'EXIF:GPSLongitude',
+  'EXIF:GPSAltitudeRef',
+  'EXIF:GPSAltitude',
+  'EXIF:GPSDOP',
+  'XMP:XMPToolkit',
+  'XMP:Lens',
+]
+
 def clahe(
   img_path,
   out_path,
@@ -166,5 +183,15 @@ def undistort_via_merged_json(
 
   if cache_dir:
     cache_processed_status(img_path, 'undistort', cache_dir)
+
+  with ExifToolHelper() as et:
+    tags = { k: tags[k] for k in TAGS_TO_KEEP if k in tags }
+    if verbose:
+      print(f'Encoding exif tags from {img_path} to {out_path}...')
+    et.set_tags(
+      [out_path],
+      tags=tags,
+      params=['-overwrite_original']
+    )
 
   return True
