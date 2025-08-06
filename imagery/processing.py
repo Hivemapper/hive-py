@@ -6,6 +6,7 @@ import os
 import subprocess
 
 from datetime import datetime
+from exiftool import ExifToolHelper
 
 TAGS_TO_KEEP = [
   'EXIF:DateTimeOriginal',
@@ -158,6 +159,11 @@ def undistort_via_merged_json(
     k2 = cam.get('k2', 0.0)
     k3 = cam.get('k3', 0.0)
     k4 = cam.get('k4', 0.0)
+
+  tags = {}
+
+  with ExifToolHelper() as et:
+    tags = et.get_tags(img_path, [])[0]
 
   img = cv.imread(img_path)
   h, w= img.shape[:2]
