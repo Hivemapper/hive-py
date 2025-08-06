@@ -1559,7 +1559,6 @@ if __name__ == '__main__':
         clahe_smart_clip(img_path, img_path, verbose, cache_dir)
       elif args.image_post_processing == 'undistort':
         assert(args.camera_intrinsics)
-        assert(args.update_exif)
         undistort_via_merged_json(img_path, img_path, verbose, cache_dir)
 
     executor = concurrent.futures.ThreadPoolExecutor(max_workers=args.num_threads)
