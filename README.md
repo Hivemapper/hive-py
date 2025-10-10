@@ -28,21 +28,29 @@ pip install -r requirements.txt
 
 ```
 > python -m imagery.query
-usage: query.py [-h] -i INPUT_FILE [-s START_DAY] [-e END_DAY] [-L] [-x] [-d MAX_DIST] [-l MAX_LAG] [-z MAX_ANGLE] -o OUTPUT_DIR [-g] [-w WIDTH] [-M]
-                [-I CUSTOM_ID_FIELD] [-S CUSTOM_MIN_DATE_FIELD] [-k] [-E] [-K SKIP_GEO_FILE] [-P IMAGE_POST_PROCESSING] -a AUTHORIZATION [-c NUM_THREADS] [-v]
-                [-C] [-b] [-N]
+usage: query.py [-h] (-i INPUT_FILE | -sg SEGMENT_IDS [SEGMENT_IDS ...]) [-s START_DAY] [-e END_DAY] [-W WEEK] [-L] [-j] [-A AZIMUTH_FILTER_ANGLE] [-T AZIMUTH_FILTER_TOLERANCE] [-G GLOBAL_MIN_DATE] [-x] [-d MAX_DIST] [-l MAX_LAG]
+                [-z MAX_ANGLE] [-xN MIN_STITCH_FRAMES] -o OUTPUT_DIR [-Z] [-Zio] [-g] [-w WIDTH] [-m MOUNT] [-M] [-f FILTER] [-I CUSTOM_ID_FIELD] [-S CUSTOM_MIN_DATE_FIELD] [-SF CUSTOM_DATE_FORMATTING] [-Io CUSTOM_OUTPUT_DIR_FIELD]
+                [-Ib CUSTOM_OUTPUT_SUCCESS_FIELD] [-Is CUSTOM_OUTPUT_DATE_FIELD] [-tI] [-p] [-k] [-E] [-K SKIP_GEO_FILE] [-P IMAGE_POST_PROCESSING] -a AUTHORIZATION [-c NUM_THREADS] [-v] [-C] [-b] [-N] [-q] [-U]
 
 options:
   -h, --help            show this help message and exit
   -i INPUT_FILE, --input_file INPUT_FILE
-  -sg SEGMENT_IDS, --segment_ids SEGMENT_IDS
+                        Input file
+  -sg SEGMENT_IDS [SEGMENT_IDS ...], --segment_ids SEGMENT_IDS [SEGMENT_IDS ...]
+                        Segment IDs
   -s START_DAY, --start_day START_DAY
   -e END_DAY, --end_day END_DAY
+  -W WEEK, --week WEEK
   -L, --latest
+  -j, --crossjoin
+  -A AZIMUTH_FILTER_ANGLE, --azimuth_filter_angle AZIMUTH_FILTER_ANGLE
+  -T AZIMUTH_FILTER_TOLERANCE, --azimuth_filter_tolerance AZIMUTH_FILTER_TOLERANCE
+  -G GLOBAL_MIN_DATE, --global_min_date GLOBAL_MIN_DATE
   -x, --stitch
   -d MAX_DIST, --max_dist MAX_DIST
   -l MAX_LAG, --max_lag MAX_LAG
   -z MAX_ANGLE, --max_angle MAX_ANGLE
+  -xN MIN_STITCH_FRAMES, --min_stitch_frames MIN_STITCH_FRAMES
   -o OUTPUT_DIR, --output_dir OUTPUT_DIR
   -Z, --zip_dirs
   -Zio, --zip_images_only
@@ -50,9 +58,10 @@ options:
   -w WIDTH, --width WIDTH
   -m MOUNT, --mount MOUNT
   -M, --merge_metadata
+  -f FILTER, --filter FILTER
   -I CUSTOM_ID_FIELD, --custom_id_field CUSTOM_ID_FIELD
   -S CUSTOM_MIN_DATE_FIELD, --custom_min_date_field CUSTOM_MIN_DATE_FIELD
-  -SF CUSTOM_MIN_DATE_FORMATTING --custom_min_date_formatting CUSTOM_MIN_DATE_FORMATTING
+  -SF CUSTOM_DATE_FORMATTING, --custom_date_formatting CUSTOM_DATE_FORMATTING
   -Io CUSTOM_OUTPUT_DIR_FIELD, --custom_output_dir_field CUSTOM_OUTPUT_DIR_FIELD
   -Ib CUSTOM_OUTPUT_SUCCESS_FIELD, --custom_output_success_field CUSTOM_OUTPUT_SUCCESS_FIELD
   -Is CUSTOM_OUTPUT_DATE_FIELD, --custom_output_date_field CUSTOM_OUTPUT_DATE_FIELD
@@ -68,6 +77,8 @@ options:
   -C, --cache
   -b, --use_batches
   -N, --skip_cached_frames
+  -q, --probe
+  -U, --map_match
 ```
 
 ### Bursts CLI
@@ -259,7 +270,7 @@ python -m mapfeatures.query --input_file "test_feature_col.json" --output_dir "o
 ## Restitching
 
 ```
-usage: stitching.py [-h] [-R RESTITCH] [-o OUT] [-d MAX_DIST] [-l MAX_LAG] [-z MAX_ANGLE] [-m MIN_SEQ_SIZE] [-v]
+usage: stitching.py [-h] [-R RESTITCH] [-o OUT] [-d MAX_DIST] [-l MAX_LAG] [-z MAX_ANGLE] [-m MIN_SEQ_SIZE] [-M MIN_SEQ_FRAMES] [-v]
 
 options:
   -h, --help            show this help message and exit
@@ -269,6 +280,7 @@ options:
   -l MAX_LAG, --max_lag MAX_LAG
   -z MAX_ANGLE, --max_angle MAX_ANGLE
   -m MIN_SEQ_SIZE, --min_seq_size MIN_SEQ_SIZE
+  -M MIN_SEQ_FRAMES, --min_seq_frames MIN_SEQ_FRAMES
   -v, --verbose
 ```
 
