@@ -17,7 +17,7 @@ from util import geo
 DEFAULT_STITCH_MAX_DISTANCE = 30 # 30 m
 DEFAULT_STITCH_MAX_LAG = 360 # 6 min
 DEFAULT_STITCH_MAX_ANGLE = 100 # right angle turn with margin
-DEFAULT_MIN_FRAMES = 10
+DEFAULT_MIN_FRAMES = 2
 
 WGS_TO_MERCATOR = Transformer.from_crs("EPSG:4326", "EPSG:3857", always_xy=True)
 
