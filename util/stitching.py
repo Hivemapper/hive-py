@@ -17,6 +17,7 @@ from util import geo
 DEFAULT_STITCH_MAX_DISTANCE = 30 # 30 m
 DEFAULT_STITCH_MAX_LAG = 360 # 6 min
 DEFAULT_STITCH_MAX_ANGLE = 100 # right angle turn with margin
+DEFAULT_MIN_FRAMES = 2
 
 WGS_TO_MERCATOR = Transformer.from_crs("EPSG:4326", "EPSG:3857", always_xy=True)
 
@@ -157,24 +158,44 @@ def stitch(
   max_dist = DEFAULT_STITCH_MAX_DISTANCE,
   max_lag = DEFAULT_STITCH_MAX_LAG,
   max_azimuth_delta = DEFAULT_STITCH_MAX_ANGLE,
+  min_frames = DEFAULT_MIN_FRAMES,
   verbose=False,
 ):
   if not frames:
     # TODO
     return []
 
+  next_seq_keys = {}
+
   sorted_frames = sorted(frames, key=lambda f: f.get('timestamp'))
 
   by_sequence = {}
   for frame in sorted_frames:
     sequence = frame.get('sequence')
-    by_sequence.setdefault(sequence, [])
-    by_sequence[sequence].append(frame)
+    if sequence not in next_seq_keys:
+      next_seq_keys[sequence] = sequence
+
+    k = next_seq_keys[sequence]
+
+    if k in by_sequence and len(by_sequence[k]) > 0:
+      pa = by_sequence[k][-1]
+      pa = (pa['position']['lat'], pa['position']['lon'])
+      pb = (frame['position']['lat'], frame['position']['lon'])
+      d = geopy.distance.distance(
+        pa,
+        pb,
+      ).meters
+      if d > max_dist:
+        next_seq_keys[sequence] = next_seq_keys[sequence] + '_'
+        k = next_seq_keys[sequence]
+
+    by_sequence.setdefault(k, [])
+    by_sequence[k].append(frame)
 
   seqs = []
   skip_stitching = []
   for seq in by_sequence.values():
-    if len(seq) > 1:
+    if len(seq) >= min_frames:
       seqs.append(sorted(seq, key=lambda f: f.get('idx')))
     else:
       skip_stitching.append([seq])
@@ -266,13 +287,14 @@ def restitch(
   max_lag=DEFAULT_STITCH_MAX_LAG,
   max_angle=DEFAULT_STITCH_MAX_ANGLE,
   min_seq_size=None,
+  min_seq_frames=DEFAULT_MIN_FRAMES,
   verbose=True,
 ):
   manifest = {}
   read_seqs(root, manifest, verbose)
 
   frames = manifest.values()
-  stitched = stitch(frames, max_dist, max_lag, max_angle, verbose)
+  stitched = stitch(frames, max_dist, max_lag, max_angle, min_seq_frames, verbose)
 
   if verbose:
     print(f'{len(stitched)} sequences')
@@ -317,6 +339,7 @@ if __name__ == '__main__':
   parser.add_argument('-l', '--max_lag', type=float, default=DEFAULT_STITCH_MAX_ANGLE)
   parser.add_argument('-z', '--max_angle', type=float, default=DEFAULT_STITCH_MAX_LAG)
   parser.add_argument('-m', '--min_seq_size', type=float)
+  parser.add_argument('-M', '--min_seq_frames', type=float)
   parser.add_argument('-v', '--verbose', action='store_true')
   args = parser.parse_args()
 
@@ -329,5 +352,6 @@ if __name__ == '__main__':
       args.max_lag,
       args.max_angle,
       args.min_seq_size,
+      args.min_seq_frames,
       args.verbose,
     )

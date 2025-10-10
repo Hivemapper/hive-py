@@ -25,6 +25,7 @@ DEFAULT_RETRIES = 10
 DEFAULT_STITCH_MAX_DISTANCE = 30
 DEFAULT_STITCH_MAX_LAG = 360
 DEFAULT_STITCH_MAX_ANGLE = 100
+DEFAULT_MIN_STITCH_FRAMES = 2
 DEFAULT_THREADS = 20
 DEFAULT_WIDTH = 25
 IMAGERY_API_URL = 'https://hivemapper.com/api/developer/imagery/poly'
@@ -798,6 +799,7 @@ def handle_download_and_export_from_raw_frames(
   authorization,
   export_geojson,
   should_stitch,
+  min_stitch_frames,
   filter_metadata,
   max_dist,
   max_lag,
@@ -860,7 +862,7 @@ def handle_download_and_export_from_raw_frames(
       if export_geojson:
         write_geojson([frames], output_dir, True, verbose)
     elif should_stitch:
-      stitched = stitching.stitch(frames, max_dist, max_lag, max_angle, verbose)
+      stitched = stitching.stitch(frames, max_dist, max_lag, max_angle, min_stitch_frames, verbose)
       for i, frame_set in enumerate(stitched):
         folder = f'{str(uuid.uuid4())}-{str(i)}'
         local_dir = os.path.join(output_dir, folder)
@@ -914,6 +916,7 @@ def _query_segment_imagery(
   latest,
   export_geojson,
   should_stitch,
+  min_stitch_frames,
   filter_metadata,
   max_dist,
   max_lag,
@@ -968,6 +971,7 @@ def _query_segment_imagery(
     authorization,
     export_geojson,
     should_stitch,
+    min_stitch_frames,
     filter_metadata,
     max_dist,
     max_lag,
@@ -1066,6 +1070,7 @@ def _query(
   global_min_date=None,
   export_geojson=False,
   should_stitch=False,
+  min_stitch_frames=DEFAULT_MIN_STITCH_FRAMES,
   filter_metadata=None,
   max_dist=DEFAULT_STITCH_MAX_DISTANCE,
   max_lag=DEFAULT_STITCH_MAX_LAG,
@@ -1123,6 +1128,7 @@ def _query(
     authorization,
     export_geojson,
     should_stitch,
+    min_stitch_frames,
     filter_metadata,
     max_dist,
     max_lag,
@@ -1218,6 +1224,7 @@ def query(
   global_min_date=None,
   export_geojson=False,
   should_stitch=False,
+  min_stitch_frames=DEFAULT_MIN_STITCH_FRAMES,
   filter_metadata=None,
   max_dist=DEFAULT_STITCH_MAX_DISTANCE,
   max_lag=DEFAULT_STITCH_MAX_LAG,
@@ -1252,6 +1259,7 @@ def query(
       latest,
       export_geojson,
       should_stitch,
+      min_stitch_frames,
       filter_metadata,
       max_dist,
       max_lag,
@@ -1300,6 +1308,7 @@ def query(
       global_min_date,
       export_geojson,
       should_stitch,
+      min_stitch_frames,
       filter_metadata,
       max_dist,
       max_lag,
@@ -1330,7 +1339,7 @@ def query(
     if use_cache:
       with open(geojson_file, 'rb') as f:
         h = hashlib.md5(f.read()).hexdigest()
-        loc = os.path.join(CACHE_DIR, f'batch_{start_day}_{end_day}_{latest}_{should_stitch}_{h}_{i}')
+        loc = os.path.join(CACHE_DIR, f'batch_{start_day}_{end_day}_{latest}_{should_stitch}_{min_stitch_frames}_{h}_{i}')
 
       if os.path.isfile(loc):
         if verbose:
@@ -1352,6 +1361,7 @@ def query(
       global_min_date,
       export_geojson,
       should_stitch,
+      min_stitch_frames,
       filter_metadata,
       max_dist,
       max_lag,
@@ -1444,6 +1454,7 @@ if __name__ == '__main__':
   parser.add_argument('-d', '--max_dist', type=float, default=DEFAULT_STITCH_MAX_DISTANCE)
   parser.add_argument('-l', '--max_lag', type=float, default=DEFAULT_STITCH_MAX_ANGLE)
   parser.add_argument('-z', '--max_angle', type=float, default=DEFAULT_STITCH_MAX_LAG)
+  parser.add_argument('-xN', '--min_stitch_frames', type=int, default=DEFAULT_MIN_STITCH_FRAMES)
   parser.add_argument('-o', '--output_dir', type=str, required=True)
   parser.add_argument('-Z', '--zip_dirs', action='store_true')
   parser.add_argument('-Zio', '--zip_images_only', action='store_true')
@@ -1527,6 +1538,7 @@ if __name__ == '__main__':
     args.global_min_date,
     args.export_geojson,
     args.stitch,
+    args.min_stitch_frames,
     args.filter,
     args.max_dist,
     args.max_lag,
