@@ -5,6 +5,7 @@ from requests.adapters import HTTPAdapter, Retry
 from typing import Any, List, TypedDict, Dict, Union, Optional
 
 from imagery.query import load_features, transform_input
+from util.geojson_preprocessor import preprocess_geometry
 
 BATCH_SIZE = 10000
 DEFAULT_BACKOFF = 1.0
@@ -160,6 +161,11 @@ def create_bursts(geojson_file_path: str, authorization: str, verbose=False) -> 
 
     features, _, _ = load_features(geojson_file, verbose)
 
+    # Preprocess geometry before API submission
+    for feature in features:
+        if "geometry" in feature:
+            feature["geometry"] = preprocess_geometry(feature["geometry"])
+    
     # format the features into array of geometries, json format [geojson: {geometry}]
     polygons = [{"geojson": feature["geometry"]} for feature in features]
 
