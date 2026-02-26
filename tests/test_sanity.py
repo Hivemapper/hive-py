@@ -1,9 +1,3 @@
-import unittest
-
-class TestSanity(unittest.TestCase):
-    def test_sanity(self):
-        """Test 1 == 1"""
-        self.assertEqual(1, 1)
-
-if __name__ == '__main__':
-    unittest.main()
+def test_sanity():
+    """Test 1 == 1"""
+    assert 1 == 1
