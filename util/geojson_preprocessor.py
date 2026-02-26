@@ -36,11 +36,11 @@ def check_area_bounds(geojson_dict, max_area=MAX_AREA, min_area=MIN_AREA):
 
 
 def count_vertices(geometry):
-    """Return max vertex count for Polygon/MultiPolygon."""
+    """Return total vertex count for Polygon/MultiPolygon."""
     if geometry.geom_type == "Polygon":
         return len(geometry.exterior.coords)
     if geometry.geom_type == "MultiPolygon":
-        return max(len(p.exterior.coords) for p in geometry.geoms)
+        return sum(len(p.exterior.coords) for p in geometry.geoms)
     return 0
 
 
@@ -65,6 +65,9 @@ def simplify_if_needed(geometry, max_vertices=MAX_VERTICES):
         if count_vertices(simplified) <= max_vertices:
             return simplified
         tolerance *= 2
+    warnings.warn(
+        f"simplify_if_needed: could not reduce vertices to {max_vertices} after 20 iterations"
+    )
     return simplified
 
 
@@ -83,7 +86,8 @@ def preprocess_geometry(
     """Main pipeline: validate, orient, check area, simplify, return GeoJSON dict."""
     shapely_geom = validate_geometry(geojson_dict)
     shapely_geom = enforce_winding_order(shapely_geom)
-    if not check_area_bounds(geojson_dict, max_area, min_area):
+    validated_dict = json.loads(shapely.to_geojson(shapely_geom))
+    if not check_area_bounds(validated_dict, max_area, min_area):
         warnings.warn(f"Geometry area outside bounds [{min_area}, {max_area}] m²")
     shapely_geom = simplify_if_needed(shapely_geom, max_vertices)
     if count_polygons(shapely_geom) > max_polygons:

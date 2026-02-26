@@ -1403,12 +1403,6 @@ def probe(
 ):
   features, _, _ = load_features(input_file, verbose)
 
-  # Re-preprocess with probe's tighter area limit
-  for feature in features:
-    if "geometry" in feature:
-      feature["geometry"] = preprocess_geometry(
-        feature["geometry"], max_area=MAX_PROBE_AREA
-      )
 
   if len(features) > 1:
     raise ValueError(f'Can only support a single GeoJSON feature')

@@ -80,7 +80,7 @@ def test_count_vertices_multipolygon():
     sq = Polygon([(0, 0), (1, 0), (1, 1), (0, 1), (0, 0)])  # 5 coords
     tri = Polygon([(2, 2), (3, 2), (3, 3), (2, 2)])  # 4 coords
     mp = MultiPolygon([sq, tri])
-    assert count_vertices(mp) == 5
+    assert count_vertices(mp) == 9  # total: 5 + 4
 
 
 def test_count_polygons_multipolygon():
