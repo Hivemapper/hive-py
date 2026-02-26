@@ -15,6 +15,7 @@ from requests.adapters import HTTPAdapter, Retry
 from tqdm import tqdm
 from urllib.parse import quote, urlparse, urlencode
 from util import geo, replace_dirs_with_zips, stitching, write_csv_from_csv
+from util.geojson_preprocessor import preprocess_geometry
 from imagery.processing import clahe_smart_clip, undistort_via_merged_json
 import copy
 
@@ -735,6 +736,11 @@ def load_features(geojson_file, verbose = False, map_match = False):
 
   assert(len(features))
 
+  # Preprocess geometry before API submission
+  for feature in features:
+    if "geometry" in feature:
+      feature["geometry"] = preprocess_geometry(feature["geometry"])
+
   return features, custom_ids, min_dates
 
 def query_latest_frames(
@@ -1396,6 +1402,7 @@ def probe(
   verbose=False,
 ):
   features, _, _ = load_features(input_file, verbose)
+
 
   if len(features) > 1:
     raise ValueError(f'Can only support a single GeoJSON feature')

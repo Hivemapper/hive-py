@@ -3,10 +3,12 @@ import os
 import json
 import shutil
 from datetime import datetime
+import pytest
 
 from tests.fixtures.fixture_feature import test_feature
 from imagery import query
 
+@pytest.mark.real_api
 class TestImageryQuery(unittest.TestCase):
 
     def setUp(self):

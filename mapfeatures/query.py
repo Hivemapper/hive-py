@@ -10,6 +10,7 @@ from area import area
 from requests.adapters import HTTPAdapter, Retry
 from tqdm import tqdm
 from util import geo, replace_dirs_with_zips
+from util.geojson_preprocessor import preprocess_geometry
 
 DEFAULT_BACKOFF = 1.0
 DEFAULT_RETRIES = 10
@@ -170,6 +171,11 @@ def load_features(geojson_file, verbose = False):
   features = new_features
 
   assert(len(features))
+
+  # Preprocess geometry before API submission
+  for feature in features:
+    if "geometry" in feature:
+      feature["geometry"] = preprocess_geometry(feature["geometry"])
 
   return features
 

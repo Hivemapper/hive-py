@@ -6,6 +6,7 @@ from typing import Any, List, TypedDict, Dict, Union, Optional
 
 from imagery.query import load_features, transform_input
 
+
 BATCH_SIZE = 10000
 DEFAULT_BACKOFF = 1.0
 DEFAULT_RETRIES = 10
