@@ -30,3 +30,12 @@ include-package-data = false
 include = ["account*", "imagery*", "burst*", "util*", "README.md", "__init__.py", "requirements.txt", "test_feature.json", "test_feature_col.json"]
 exclude = ["docs*", "tests*"]
 
+
+[project.optional-dependencies]
+test = ["pytest", "pytest-cov", "responses"]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+markers = [
+    "real_api: marks tests as requiring real API token (deselect with '-m \"not real_api\"')"
+]
