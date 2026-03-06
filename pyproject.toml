@@ -38,3 +38,9 @@ test = ["pytest", "pytest-cov", "responses"]
 markers = [
     "real_api: marks tests as requiring real API token (deselect with '-m \"not real_api\"')"
 ]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+markers = [
+    "real_api: marks tests as requiring real API token (deselect with '-m \"not real_api\"')"
+]
