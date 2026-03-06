@@ -35,11 +35,6 @@ exclude = ["docs*", "tests*"]
 test = ["pytest", "pytest-cov", "responses"]
 
 [tool.pytest.ini_options]
-markers = [
-    "real_api: marks tests as requiring real API token (deselect with '-m \"not real_api\"')"
-]
-
-[tool.pytest.ini_options]
 pythonpath = ["."]
 markers = [
     "real_api: marks tests as requiring real API token (deselect with '-m \"not real_api\"')"
