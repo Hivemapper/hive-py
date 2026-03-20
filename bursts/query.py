@@ -163,7 +163,29 @@ def create_bursts(geojson_file_path: str, authorization: str, verbose=False) -> 
     # format the features into array of geometries, json format [geojson: {geometry}]
     polygons = [{"geojson": feature["geometry"]} for feature in features]
 
-    return post_request(BURST_API_URL, headers=headers, data=polygons, verbose=verbose)
+    all_bursts = []
+    credits_remaining = None
+    for i in range(0, len(polygons), BATCH_SIZE):
+        batch = polygons[i:i + BATCH_SIZE]
+        if verbose:
+            print(f'processing batch {i} to {i + len(batch)} of {len(polygons)} polygons...')
+        resp = post_request(BURST_API_URL, headers=headers, data=batch, verbose=verbose)
+        if isinstance(resp, dict):
+            all_bursts.extend(resp.get("bursts", []))
+            credits_remaining = resp.get("creditsRemaining", credits_remaining)
+            if not resp.get("success", True):
+                if verbose:
+                    print(f'batch {i} failed, stopping.')
+                return resp
+        elif isinstance(resp, list) and len(resp) == 0:
+            # error case from post_request
+            continue
+
+    return {
+        "success": True,
+        "bursts": all_bursts,
+        "creditsRemaining": credits_remaining,
+    }
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
