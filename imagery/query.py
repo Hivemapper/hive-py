@@ -5,7 +5,7 @@ import json
 import os
 import requests
 import shutil
-import time
+
 import uuid
 
 from area import area
@@ -44,6 +44,7 @@ VALID_POST_PROCESSING_OPTS = ['clahe-smart-clip', 'undistort']
 request_session = requests.Session()
 retries = Retry(
   total=DEFAULT_RETRIES,
+  connect=DEFAULT_RETRIES,
   backoff_factor=DEFAULT_BACKOFF,
   status_forcelist=STATUS_FORCELIST,
   raise_on_status=True,
@@ -74,8 +75,6 @@ def post_cached(
   skip_cached_frames=False,
   pbar=None,
   custom_id=None,
-  max_connection_retries=DEFAULT_RETRIES,
-  connection_backoff_factor=DEFAULT_BACKOFF,
 ):
   loc = None
   if use_cache:
@@ -97,62 +96,48 @@ def post_cached(
         except:
           pass
 
-  for attempt in range(max_connection_retries + 1):
+  with request_session.post(url, data=json.dumps(data), headers=headers) as r:
     try:
-      with request_session.post(url, data=json.dumps(data), headers=headers) as r:
-        try:
-          try:
-            if "error" in r.json():
-              http_json_error_msg = r.json()["error"]
-              print (http_json_error_msg)
-          except json.JSONDecodeError:
-            pass
-          r.raise_for_status()
-        except requests.exceptions.HTTPError as e:
-          if e.response.status_code == 500:
-            if verbose:
-              print('Encountered a server error, skipping:')
-              print(e)
-            if pbar:
-              pbar.update(1)
-            return []
-          else:
-            raise e
-        except requests.exceptions.RetryError as e:
-          if verbose:
-            print('Encountered a server error, skipping:')
-            print(e)
-          if pbar:
-            pbar.update(1)
-          return []
-
-        resp = r.json()
-        frames = resp.get('frames', [])
-
-        if custom_id is not None:
-          for frame in frames:
-            frame['id'] = custom_id
-
-        if loc is not None:
-          with open(loc, 'w') as f:
-            json.dump(frames, f)
-
-        if pbar is not None:
-          pbar.update(1)
-
-        return frames
-    except (requests.exceptions.ConnectionError, requests.exceptions.ChunkedEncodingError) as e:
-      if attempt < max_connection_retries:
-        wait_time = connection_backoff_factor * (2 ** attempt)
+      try:
+        if "error" in r.json():
+          http_json_error_msg = r.json()["error"]
+          print (http_json_error_msg)
+      except json.JSONDecodeError:
+        pass
+      r.raise_for_status()
+    except requests.exceptions.HTTPError as e:
+      if e.response.status_code == 500:
         if verbose:
-          print(f'Connection error (attempt {attempt + 1}/{max_connection_retries + 1}), retrying in {wait_time:.1f}s: {e}')
-        time.sleep(wait_time)
-      else:
-        if verbose:
-          print(f'Connection error after {max_connection_retries + 1} attempts, skipping: {e}')
+          print('Encountered a server error, skipping:')
+          print(e)
         if pbar:
           pbar.update(1)
         return []
+      else:
+        raise e
+    except requests.exceptions.RetryError as e:
+      if verbose:
+        print('Encountered a server error, skipping:')
+        print(e)
+      if pbar:
+        pbar.update(1)
+      return []
+
+    resp = r.json()
+    frames = resp.get('frames', [])
+
+    if custom_id is not None:
+      for frame in frames:
+        frame['id'] = custom_id
+
+    if loc is not None:
+      with open(loc, 'w') as f:
+        json.dump(frames, f)
+
+    if pbar is not None:
+      pbar.update(1)
+
+    return frames
 
 def make_week(d):
     year = d.year
