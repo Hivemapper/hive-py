@@ -96,48 +96,56 @@ def post_cached(
         except:
           pass
 
-  with request_session.post(url, data=json.dumps(data), headers=headers) as r:
-    try:
+  try:
+    with request_session.post(url, data=json.dumps(data), headers=headers) as r:
       try:
-        if "error" in r.json():
-          http_json_error_msg = r.json()["error"]
-          print (http_json_error_msg)
-      except json.JSONDecodeError:
-        pass
-      r.raise_for_status()
-    except requests.exceptions.HTTPError as e:
-      if e.response.status_code == 500:
+        try:
+          if "error" in r.json():
+            http_json_error_msg = r.json()["error"]
+            print (http_json_error_msg)
+        except json.JSONDecodeError:
+          pass
+        r.raise_for_status()
+      except requests.exceptions.HTTPError as e:
+        if e.response.status_code == 500:
+          if verbose:
+            print('Encountered a server error, skipping:')
+            print(e)
+          if pbar:
+            pbar.update(1)
+          return []
+        else:
+          raise e
+      except requests.exceptions.RetryError as e:
         if verbose:
           print('Encountered a server error, skipping:')
           print(e)
         if pbar:
           pbar.update(1)
         return []
-      else:
-        raise e
-    except requests.exceptions.RetryError as e:
-      if verbose:
-        print('Encountered a server error, skipping:')
-        print(e)
-      if pbar:
+
+      resp = r.json()
+      frames = resp.get('frames', [])
+
+      if custom_id is not None:
+        for frame in frames:
+          frame['id'] = custom_id
+
+      if loc is not None:
+        with open(loc, 'w') as f:
+          json.dump(frames, f)
+
+      if pbar is not None:
         pbar.update(1)
-      return []
 
-    resp = r.json()
-    frames = resp.get('frames', [])
-
-    if custom_id is not None:
-      for frame in frames:
-        frame['id'] = custom_id
-
-    if loc is not None:
-      with open(loc, 'w') as f:
-        json.dump(frames, f)
-
-    if pbar is not None:
+      return frames
+  except requests.exceptions.ConnectionError as e:
+    if verbose:
+      print(f'Connection failed (after transport retries), skipping:')
+      print(e)
+    if pbar:
       pbar.update(1)
-
-    return frames
+    return []
 
 def make_week(d):
     year = d.year
