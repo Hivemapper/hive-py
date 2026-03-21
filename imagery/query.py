@@ -5,6 +5,7 @@ import json
 import os
 import requests
 import shutil
+
 import uuid
 
 from area import area
@@ -43,6 +44,7 @@ VALID_POST_PROCESSING_OPTS = ['clahe-smart-clip', 'undistort']
 request_session = requests.Session()
 retries = Retry(
   total=DEFAULT_RETRIES,
+  connect=DEFAULT_RETRIES,
   backoff_factor=DEFAULT_BACKOFF,
   status_forcelist=STATUS_FORCELIST,
   raise_on_status=True,
@@ -94,48 +96,56 @@ def post_cached(
         except:
           pass
 
-  with request_session.post(url, data=json.dumps(data), headers=headers) as r:
-    try:
+  try:
+    with request_session.post(url, data=json.dumps(data), headers=headers) as r:
       try:
-        if "error" in r.json():
-          http_json_error_msg = r.json()["error"]
-          print (http_json_error_msg)
-      except json.JSONDecodeError:
-        pass
-      r.raise_for_status()
-    except requests.exceptions.HTTPError as e:
-      if e.response.status_code == 500:
+        try:
+          if "error" in r.json():
+            http_json_error_msg = r.json()["error"]
+            print (http_json_error_msg)
+        except json.JSONDecodeError:
+          pass
+        r.raise_for_status()
+      except requests.exceptions.HTTPError as e:
+        if e.response.status_code == 500:
+          if verbose:
+            print('Encountered a server error, skipping:')
+            print(e)
+          if pbar:
+            pbar.update(1)
+          return []
+        else:
+          raise e
+      except requests.exceptions.RetryError as e:
         if verbose:
           print('Encountered a server error, skipping:')
           print(e)
         if pbar:
           pbar.update(1)
         return []
-      else:
-        raise e
-    except requests.exceptions.RetryError as e:
-      if verbose:
-        print('Encountered a server error, skipping:')
-        print(e)
-      if pbar:
+
+      resp = r.json()
+      frames = resp.get('frames', [])
+
+      if custom_id is not None:
+        for frame in frames:
+          frame['id'] = custom_id
+
+      if loc is not None:
+        with open(loc, 'w') as f:
+          json.dump(frames, f)
+
+      if pbar is not None:
         pbar.update(1)
-      return []
 
-    resp = r.json()
-    frames = resp.get('frames', [])
-
-    if custom_id is not None:
-      for frame in frames:
-        frame['id'] = custom_id
-
-    if loc is not None:
-      with open(loc, 'w') as f:
-        json.dump(frames, f)
-
-    if pbar is not None:
+      return frames
+  except requests.exceptions.ConnectionError as e:
+    if verbose:
+      print(f'Connection failed (after transport retries), skipping:')
+      print(e)
+    if pbar:
       pbar.update(1)
-
-    return frames
+    return []
 
 def make_week(d):
     year = d.year
@@ -378,36 +388,40 @@ def query_imagery(
 
   threads = min(MAX_API_THREADS, num_threads)
   executor = concurrent.futures.ThreadPoolExecutor(max_workers=threads)
-  futures = []
 
-  for feature, custom_id in zip_longest(features, custom_ids):
-    data = feature.get('geometry', feature)
-    assert(area(data) <= MAX_AREA)
+  # Process features in batches to avoid overwhelming the server
+  for batch_start in range(0, len(features), BATCH_SIZE):
+    batch_features = features[batch_start:batch_start + BATCH_SIZE]
+    batch_ids = custom_ids[batch_start:batch_start + BATCH_SIZE] if custom_ids else []
+    futures = []
 
-    for week in weeks:
-      url = f'{IMAGERY_API_URL}?week={week}'
-      if mount:
-        url += f'&mount={mount}'
-      if azi_filter:
-        url += f'&azimuth={azi_filter[0]}&tolerance={azi_filter[1]}'
+    for feature, custom_id in zip_longest(batch_features, batch_ids):
+      data = feature.get('geometry', feature)
+      assert(area(data) <= MAX_AREA)
 
-      future = executor.submit(
-        post_cached,
-        url,
-        data,
-        headers,
-        verbose,
-        use_cache,
-        skip_cached_frames,
-        pbar,
-        custom_id,
-      )
-      futures.append(future)
+      for week in weeks:
+        url = f'{IMAGERY_API_URL}?week={week}'
+        if mount:
+          url += f'&mount={mount}'
+        if azi_filter:
+          url += f'&azimuth={azi_filter[0]}&tolerance={azi_filter[1]}'
 
-  for future in concurrent.futures.as_completed(futures):
-    results = future.result()
+        future = executor.submit(
+          post_cached,
+          url,
+          data,
+          headers,
+          verbose,
+          use_cache,
+          skip_cached_frames,
+          pbar,
+          custom_id,
+        )
+        futures.append(future)
 
-    frames += results
+    for future in concurrent.futures.as_completed(futures):
+      results = future.result()
+      frames += results
 
   if pbar is not None:
     pbar.close()
@@ -442,50 +456,56 @@ def query_latest_imagery(
 
   threads = min(MAX_API_THREADS, num_threads)
   executor = concurrent.futures.ThreadPoolExecutor(max_workers=threads)
-  futures = []
 
-  for feature, custom_id, min_day in zip_longest(features, custom_ids, min_days):
-    data = feature.get('geometry', feature)
-    assert(area(data) <= MAX_AREA)
+  # Process features in batches to avoid overwhelming the server
+  for batch_start in range(0, len(features), BATCH_SIZE):
+    batch_features = features[batch_start:batch_start + BATCH_SIZE]
+    batch_ids = custom_ids[batch_start:batch_start + BATCH_SIZE] if custom_ids else []
+    batch_min_days = min_days[batch_start:batch_start + BATCH_SIZE] if min_days else []
+    futures = []
 
-    url = LATEST_IMAGERY_API_URL if not map_match else MAP_MATCH_API_URL
-    params_added = False
-    if min_day:
-      url += f'?min_week={min_day}'
-      params_added = True
-    elif global_min_date:
-      url += f'?min_week={global_min_date.strftime("%Y-%m-%d")}'
-      params_added = True      
+    for feature, custom_id, min_day in zip_longest(batch_features, batch_ids, batch_min_days):
+      data = feature.get('geometry', feature)
+      assert(area(data) <= MAX_AREA)
 
-    if mount:
-      pchar = '&' if params_added else '?'
-      url += f'{pchar}mount={mount}'
-      params_added = True
-    if crossjoin:
-      pchar = '&' if params_added else '?'
-      url += f'{pchar}crossjoin=true'
-      params_added = True
-    if azi_filter:
-      pchar = '&' if params_added else '?'
-      url += f'{pchar}azimuth={azi_filter[0]}&tolerance={azi_filter[1]}'
-      params_added = True
+      url = LATEST_IMAGERY_API_URL if not map_match else MAP_MATCH_API_URL
+      params_added = False
+      if min_day:
+        url += f'?min_week={min_day}'
+        params_added = True
+      elif global_min_date:
+        url += f'?min_week={global_min_date.strftime("%Y-%m-%d")}'
+        params_added = True      
 
-    future = executor.submit(
-      post_cached,
-      url,
-      data,
-      headers,
-      verbose,
-      use_cache,
-      skip_cached_frames,
-      pbar,
-      custom_id,
-    )
-    futures.append(future)
+      if mount:
+        pchar = '&' if params_added else '?'
+        url += f'{pchar}mount={mount}'
+        params_added = True
+      if crossjoin:
+        pchar = '&' if params_added else '?'
+        url += f'{pchar}crossjoin=true'
+        params_added = True
+      if azi_filter:
+        pchar = '&' if params_added else '?'
+        url += f'{pchar}azimuth={azi_filter[0]}&tolerance={azi_filter[1]}'
+        params_added = True
 
-  for future in concurrent.futures.as_completed(futures):
-    results = future.result()
-    frames += results
+      future = executor.submit(
+        post_cached,
+        url,
+        data,
+        headers,
+        verbose,
+        use_cache,
+        skip_cached_frames,
+        pbar,
+        custom_id,
+      )
+      futures.append(future)
+
+    for future in concurrent.futures.as_completed(futures):
+      results = future.result()
+      frames += results
 
   if pbar is not None:
     pbar.close()
